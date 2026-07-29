@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>链上服务站｜Origin 生态入口</title>
+<meta name="description" content="Origin 生态课程、视频、链上数据和实用工具的独立入口。">
+<link rel="icon" type="image/png" href="服务站11-1-assets/favicon.png">
+<link rel="stylesheet" href="服务站11-1-assets/site.css">
+</head>
+<body data-page="home">
+<div class="origin-bg" aria-hidden="true"><img src="服务站11-1-assets/bg.png" alt=""></div>
+<canvas class="origin-embers" id="originEmbers" aria-hidden="true"></canvas>
+
+<!-- 全局数据条 -->
+<div class="global-bar">
+  <div class="global-bar-inner">
+    <div class="global-item">
+      <span class="global-label">LGNS</span>
+      <span class="global-value" id="globalPrice">—</span>
+      <span class="global-change" id="globalPriceChange">加载中</span>
+    </div>
+    <div class="global-divider"></div>
+    <div class="global-item">
+      <span class="global-label">总供应</span>
+      <span class="global-value" id="globalSupply">—</span>
+    </div>
+    <div class="global-divider"></div>
+    <div class="global-item">
+      <span class="global-label">质押率</span>
+      <span class="global-value" id="globalStakeRate">—</span>
+    </div>
+    <div class="global-divider"></div>
+    <div class="global-item">
+      <span class="global-label">国库市值</span>
+      <span class="global-value" id="globalTreasury">—</span>
+    </div>
+    <div class="global-divider"></div>
+    <div class="global-item">
+      <span class="global-label">生态 TVL</span>
+      <span class="global-value" id="globalTvl">—</span>
+    </div>
+    <div class="global-divider"></div>
+    <div class="global-item">
+      <span class="global-label">Anubis 区块</span>
+      <span class="global-value" id="globalBlock">—</span>
+    </div>
+    <div class="global-divider"></div>
+    <div class="global-item">
+      <span class="global-label">Anubis 地址</span>
+      <span class="global-value" id="globalAddresses">—</span>
+      <span class="global-change" id="globalDataStatus">实时接口</span>
+    </div>
+  </div>
+</div>
+<!-- 导航栏 -->
+<nav class="navbar">
+  <div class="nav-container">
+    <a class="nav-left" href="index.html" aria-label="返回首页" style="text-decoration:none">
+      <div class="logo-icon">⛓</div>
+      <div class="logo-text">
+        <span class="logo-title">链上服务站</span>
+        <span class="logo-sub">独立服务站 · 非项目官方</span>
+      </div>
+    </a>
+    <div class="nav-links">
+      <a href="index.html" class="nav-link active">首页</a>
+      <a href="academy.html" class="nav-link">学习学院</a>
+      <a href="videos.html" class="nav-link">视频学院</a>
+      <a href="tools.html" class="nav-link">实用工具</a>
+      <a href="radar.html" class="nav-link">链上雷达</a>
+      <a href="index.html#origin-guide" class="nav-link">Origin 专区</a>
+      <a href="academy.html#faq" class="nav-link">常见问题</a>
+    </div>
+    <div class="nav-right">
+      <button class="nav-mobile-toggle" id="navToggle" aria-label="打开导航菜单" aria-expanded="false">☰</button>
+      <button class="btn-ghost" id="refreshData" type="button">↻ 刷新数据</button>
+      <button class="btn-ghost" id="localInfoBtn" type="button">资料说明</button>
+      <a class="nav-cta" href="academy.html">进入学院</a>
+    </div>
+  </div>
+</nav>
+<main class="main-container" id="home">
+<!-- Hero 区域 -->
+  <div class="hero fade-up">
+    <div class="hero-left">
+      <div class="hero-badge">
+        <span style="font-size:14px">🌱</span>
+        从 Web3 小白到链上研究者的一站式服务站
+      </div>
+      <h1 class="hero-title">
+        有问题先问 AI<br>
+        <span>数据自己查 · 工具自己用</span>
+      </h1>
+      <p class="hero-desc">
+        为 Origin 生态客户提供独立、透明、可验证的链上服务。
+        不代管资产，不连钱包，所有数据可在区块浏览器独立核实。
+      </p>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="hero-stat-value">36</div>
+          <div class="hero-stat-label">系统课程</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-value" id="heroVideoCount">61</div>
+          <div class="hero-stat-label">视频教程</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-value">9+</div>
+          <div class="hero-stat-label">实用工具</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-value">60s</div>
+          <div class="hero-stat-label">数据自动刷新</div>
+        </div>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="ai-card">
+        <div class="ai-card-header">
+          <div class="ai-avatar">🤖</div>
+          <div>
+            <div class="ai-card-title">智能学习助手</div>
+            <div class="ai-status">
+              <span class="ai-pulse"></span>
+              从 <span id="aiDatasetCount">36 节课程与 61 部视频</span>中检索
+            </div>
+          </div>
+        </div>
+        <div class="ai-input-box">
+          <input type="text" class="ai-input" placeholder="用大白话描述你的问题...">
+          <button class="ai-send">➜</button>
+        </div>
+        <div class="ai-hint">
+          💡 试试：如何查看奖励？ · LGNS 质押收益怎么算？ · 涡轮是什么？
+        </div>
+        <div class="ai-results" id="aiResults" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+
+<!-- 快速入口 -->
+  <div class="quick-access fade-up">
+    <a class="qa-card" href="academy.html">
+      <div class="qa-icon learn">📚</div>
+      <div class="qa-title">学习学院</div>
+      <div class="qa-desc">5级系统课程，从 Web3 入门到链上研究者</div>
+      <div class="qa-count">36 节课 · 免费</div>
+    </a>
+    <a class="qa-card" href="videos.html">
+      <div class="qa-icon video">▶️</div>
+      <div class="qa-title">视频学院</div>
+      <div class="qa-desc">用视频看懂 Origin 生态，新手实操一步步教</div>
+      <div class="qa-count"><span id="quickVideoCount">61</span> 部视频 · 实操</div>
+    </a>
+    <a class="qa-card" href="tools.html">
+      <div class="qa-icon tools">🛠️</div>
+      <div class="qa-title">实用工具</div>
+      <div class="qa-desc">合约验证、钱包体检、收益计算、证据查询</div>
+      <div class="qa-count">9+ 工具 · 不连钱包</div>
+    </a>
+    <a class="qa-card" href="radar.html">
+      <div class="qa-icon data">📡</div>
+      <div class="qa-title">链上雷达</div>
+      <div class="qa-desc">实时数据面板、链上日报、大额监测</div>
+      <div class="qa-count">实时 · 独立可验证</div>
+    </a>
+  </div>
+
+<!-- Origin 生态概览 -->
+  <div class="section fade-up" id="origin-guide">
+    <div class="section-header">
+      <div class="section-title">
+        先认门，再动手
+        <span class="tag">Origin 生态入门</span>
+      </div>
+      <span class="section-more">内容已完整收录</span>
+    </div>
+    <div class="origin-intro-grid">
+      <article class="origin-tablet">
+        <div class="rune">卷一 · ORIGIN</div>
+        <h3>起源是什么</h3>
+        <p>一整个 Web3 生态：核心是 LGNS，配套质押、DAO 治理，以及自建的 Anubis 公链。可以先把它理解成“一个有自己代币和规则的链上社区”。</p>
+      </article>
+      <article class="origin-tablet">
+        <div class="rune">卷二 · LGNS</div>
+        <h3>LGNS 是什么</h3>
+        <p>生态里的核心代币，可用于持有与质押参与生态；其 (3,3) 博弈模型鼓励长期参与。高年化不等于净收益，还需要同时观察价格、储备与通胀。</p>
+      </article>
+      <article class="origin-tablet">
+        <div class="rune">卷三 · STAKING</div>
+        <h3>质押是什么</h3>
+        <p>把 LGNS 进入质押合约、按周期获得代币奖励的过程。奖励来自协议 rebase 增发，本页只提供学习与只读查询，不代替用户连接钱包或发起交易。</p>
+      </article>
+    </div>
+  </div>
+</main>
+<div class="modal" id="videoModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="videoModalTitle">
+  <div class="modal-dialog">
+    <div class="modal-head">
+      <h3 id="videoModalTitle">视频播放</h3>
+      <button class="modal-close" id="videoModalClose" type="button" aria-label="关闭视频">✕</button>
+    </div>
+    <video id="videoPlayer" controls playsinline preload="metadata" controlslist="nodownload noremoteplayback"></video>
+    <div class="modal-meta" id="videoModalMeta"></div>
+  </div>
+</div>
+
+<div class="modal" id="toolModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="toolModalTitle">
+  <div class="modal-dialog tool-modal-dialog">
+    <div class="modal-head">
+      <h3 id="toolModalTitle">实用工具</h3>
+      <button class="modal-close" id="toolModalClose" type="button" aria-label="关闭工具">✕</button>
+    </div>
+    <div class="tool-modal-body" id="toolModalBody"></div>
+  </div>
+</div>
+
+<button class="back-to-top" id="backToTop" type="button" aria-label="返回顶部" title="返回顶部">↑</button>
+<footer class="footer">
+  <div class="footer-inner">
+    <div>
+      <div class="footer-brand">
+        <div class="logo-title" style="display:flex;align-items:center;gap:8px"><span style="font-size:24px">⛓</span>链上服务站</div>
+        <div class="logo-sub">Origin 生态独立服务站</div>
+      </div>
+      <div class="footer-desc">不代管资产 · 不连接钱包 · 公开数据可独立验证<br>从 Web3 入门到链上研究的一站式学习与查询入口</div>
+      <div class="footer-social">
+        <a href="https://x.com/hyc199844" target="_blank" rel="noopener">𝕏</a>
+        <a href="https://t.me/hyc199744" target="_blank" rel="noopener">TG</a>
+        <a href="index.html">首页</a>
+      </div>
+    </div>
+    <div class="footer-col"><h4>学习</h4><a href="academy.html">学习学院</a><a href="videos.html">视频学院</a><a href="academy.html#faq">术语与问答</a></div>
+    <div class="footer-col"><h4>工具</h4><a href="tools.html">全部工具</a><a href="tools.html">钱包体检</a><a href="tools.html">收益计算</a></div>
+    <div class="footer-col"><h4>数据</h4><a href="radar.html">链上雷达</a><a href="radar.html#evidence">证据库</a><a href="index.html#origin-guide">Origin 专区</a></div>
+  </div>
+  <div class="footer-bottom"><span>© 2026 链上服务站 · DYOR · 独立服务站，非项目官方</span><span>公开数据与媒体素材：web3origin.com</span></div>
+</footer>
+<script src="服务站11-1-assets/site-config.js"></script>
+<script src="服务站11-1-assets/academy_index.js"></script>
+<script src="服务站11-1-assets/videos.js"></script>
+<script src="服务站11-1-assets/contracts.js"></script>
+<script src="服务站11-1-assets/events.js"></script>
+<script src="服务站11-1-assets/site.js"></script>
+</body>
+</html>
