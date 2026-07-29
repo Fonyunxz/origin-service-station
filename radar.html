@@ -202,7 +202,7 @@
         <div>
           <span class="market-kicker">OKX SPOT MARKET</span>
           <h3>主流币实时走势与 K 线</h3>
-          <p>选择币种与周期，查看欧易现货价格、分时走势和 OHLCV K 线；不连接账户，不提供下单操作。</p>
+          <p>优先读取欧易实时公开行情；国内网络无法直连时自动切换本站缓存，分时与 OHLCV K 线仍可查看。</p>
         </div>
         <div class="market-status" id="okxMarketStatus" aria-live="polite">正在连接欧易公开行情</div>
       </div>
@@ -257,7 +257,7 @@
         </div>
       </div>
       <div class="market-foot">
-        <span id="okxMarketUpdated">价格每 10 秒刷新 · K 线每 15 秒刷新</span>
+        <span id="okxMarketUpdated">实时接口优先 · 国内兼容缓存约每 15 分钟更新</span>
         <a href="https://www.okx.com/docs-v5/en/#rest-api-market-data-get-candlesticks" target="_blank" rel="noopener noreferrer">欧易 K 线接口说明 ↗</a>
       </div>
     </div>
@@ -359,11 +359,12 @@
   </div>
   <div class="footer-bottom"><span>© 2026 链上服务站 · DYOR · 独立服务站，非项目官方</span><span>公开数据与媒体素材：web3origin.com</span></div>
 </footer>
+<script src="data/okx-market-cache.js?v=20260729-cncache1"></script>
 <script src="服务站11-1-assets/site-config.js"></script>
 <script src="服务站11-1-assets/academy_index.js"></script>
 <script src="服务站11-1-assets/videos.js"></script>
 <script src="服务站11-1-assets/contracts.js"></script>
 <script src="服务站11-1-assets/events.js"></script>
-<script src="服务站11-1-assets/site.js?v=20260729-themeicons1"></script>
+<script src="服务站11-1-assets/site.js?v=20260729-cncache1"></script>
 </body>
 </html>

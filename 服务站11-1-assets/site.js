@@ -34,6 +34,8 @@
   const REFRESH_INTERVAL_MS = Math.max(15000, Number(CONFIG.refreshIntervalMs) || 60000);
   const OKX_REFRESH_INTERVAL_MS = 10000;
   const OKX_CANDLE_REFRESH_INTERVAL_MS = 15000;
+  const OKX_DIRECT_RETRY_BACKOFF_MS = 120000;
+  const OKX_LOCAL_CACHE_KEY = "web3origin_okx_market_cache_v1";
   const OKX_TICKER_ENDPOINT = "https://www.okx.com/api/v5/market/ticker?instId=";
   const OKX_CANDLE_ENDPOINT = "https://www.okx.com/api/v5/market/candles";
   const OKX_MARKETS = Object.freeze([
@@ -95,6 +97,15 @@
   let okxChartRequestId = 0;
   let okxChartHoverIndex = null;
   let okxChartResizeObserver = null;
+  let okxBundledSnapshot = null;
+  let okxLocalSnapshot = null;
+  let okxMarketMode = "loading";
+  let okxMarketUpdatedAt = 0;
+  let okxMarketCount = 0;
+  let okxCandleMode = "loading";
+  let okxCandleUpdatedAt = 0;
+  let okxTickerBlockedUntil = 0;
+  let okxCandleBlockedUntil = 0;
 
   function escapeHtml(value) {
     return String(value == null ? "" : value).replace(/[&<>"']/g, char => ({
@@ -989,6 +1000,201 @@
     return Number.isFinite(number) ? (number >= 0 ? "+" : "") + number.toFixed(2) + "%" : "—";
   }
 
+  function normalizeOkxTickers(rows) {
+    if (!Array.isArray(rows)) return [];
+    return rows.filter(row => row && OKX_MARKETS.some(market => market.instId === row.instId));
+  }
+
+  function normalizeOkxCandles(rows) {
+    if (!Array.isArray(rows)) return [];
+    return rows.map(row => {
+      if (Array.isArray(row)) {
+        return {
+          ts: Number(row[0]),
+          open: Number(row[1]),
+          high: Number(row[2]),
+          low: Number(row[3]),
+          close: Number(row[4]),
+          volume: Number(row[5]),
+          quoteVolume: Number(row[7]),
+          confirmed: row[8] === "1"
+        };
+      }
+      return {
+        ts: Number(row?.ts),
+        open: Number(row?.open),
+        high: Number(row?.high),
+        low: Number(row?.low),
+        close: Number(row?.close),
+        volume: Number(row?.volume),
+        quoteVolume: Number(row?.quoteVolume),
+        confirmed: row?.confirmed === true
+      };
+    }).filter(item => [item.ts, item.open, item.high, item.low, item.close].every(Number.isFinite))
+      .sort((a, b) => a.ts - b.ts);
+  }
+
+  function readOkxLocalSnapshot() {
+    try {
+      const snapshot = JSON.parse(localStorage.getItem(OKX_LOCAL_CACHE_KEY));
+      return snapshot && typeof snapshot === "object" ? snapshot : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function writeOkxLocalSnapshot() {
+    if (!okxLocalSnapshot) return;
+    try { localStorage.setItem(OKX_LOCAL_CACHE_KEY, JSON.stringify(okxLocalSnapshot)); }
+    catch (error) {}
+  }
+
+  function snapshotTickerTime(snapshot) {
+    return Number(snapshot?.tickerUpdatedAt) || Number(snapshot?.generatedAt) || 0;
+  }
+
+  function snapshotCandleTime(snapshot, instId, bar) {
+    const key = instId + "|" + bar;
+    return Number(snapshot?.candleUpdatedAt?.[key]) || Number(snapshot?.generatedAt) || 0;
+  }
+
+  function getCachedOkxTickers() {
+    return [okxBundledSnapshot, okxLocalSnapshot]
+      .map(snapshot => ({
+        rows: normalizeOkxTickers(snapshot?.tickers),
+        updatedAt: snapshotTickerTime(snapshot)
+      }))
+      .filter(item => item.rows.length)
+      .sort((a, b) => b.updatedAt - a.updatedAt)[0] || null;
+  }
+
+  function getCachedOkxCandles(instId, bar) {
+    return [okxBundledSnapshot, okxLocalSnapshot]
+      .map(snapshot => ({
+        rows: normalizeOkxCandles(snapshot?.candles?.[instId]?.[bar]),
+        updatedAt: snapshotCandleTime(snapshot, instId, bar)
+      }))
+      .filter(item => item.rows.length)
+      .sort((a, b) => b.updatedAt - a.updatedAt)[0] || null;
+  }
+
+  function ensureOkxLocalSnapshot() {
+    if (!okxLocalSnapshot || typeof okxLocalSnapshot !== "object") {
+      okxLocalSnapshot = {
+        version: 1,
+        source: "OKX public market data",
+        generatedAt: 0,
+        tickerUpdatedAt: 0,
+        tickers: [],
+        candles: {},
+        candleUpdatedAt: {}
+      };
+    }
+    if (!okxLocalSnapshot.candles || typeof okxLocalSnapshot.candles !== "object") {
+      okxLocalSnapshot.candles = {};
+    }
+    if (!okxLocalSnapshot.candleUpdatedAt || typeof okxLocalSnapshot.candleUpdatedAt !== "object") {
+      okxLocalSnapshot.candleUpdatedAt = {};
+    }
+    return okxLocalSnapshot;
+  }
+
+  function saveLiveOkxTickers(rows) {
+    if (rows.length !== OKX_MARKETS.length) return;
+    const snapshot = ensureOkxLocalSnapshot();
+    snapshot.tickers = rows;
+    snapshot.tickerUpdatedAt = Math.max(
+      ...rows.map(row => Number(row.ts)).filter(Number.isFinite),
+      Date.now()
+    );
+    snapshot.generatedAt = Date.now();
+    writeOkxLocalSnapshot();
+  }
+
+  function saveLiveOkxCandles(instId, bar, rows) {
+    if (!rows.length) return;
+    const snapshot = ensureOkxLocalSnapshot();
+    if (!snapshot.candles[instId]) snapshot.candles[instId] = {};
+    snapshot.candles[instId][bar] = rows;
+    snapshot.candleUpdatedAt[instId + "|" + bar] = Date.now();
+    snapshot.generatedAt = Date.now();
+    writeOkxLocalSnapshot();
+  }
+
+  function formatOkxUpdatedAt(value) {
+    const timestamp = Number(value);
+    if (!Number.isFinite(timestamp) || timestamp <= 0) return "等待更新";
+    return new Date(timestamp).toLocaleString("zh-CN", {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false
+    });
+  }
+
+  function renderOkxAvailabilityStatus() {
+    const status = $("#okxMarketStatus");
+    if (!status) return;
+    status.classList.remove("online", "offline", "partial", "cached");
+    if (okxMarketMode === "live" && okxCandleMode === "live") {
+      status.textContent = "价格与 K 线实时 · " + okxMarketCount + "/" + OKX_MARKETS.length;
+      status.classList.add("online");
+    } else if (okxMarketMode === "live" && okxCandleMode === "cache") {
+      status.textContent = "价格实时 · K 线缓存 " + formatOkxUpdatedAt(okxCandleUpdatedAt);
+      status.classList.add("partial");
+    } else if (okxMarketMode === "live") {
+      status.textContent = "价格实时 · K 线" + (okxCandleMode === "offline" ? "暂不可用" : "连接中");
+      status.classList.add("partial");
+    } else if (okxMarketMode === "partial") {
+      status.textContent = "部分价格实时 · " + okxMarketCount + "/" + OKX_MARKETS.length;
+      status.classList.add("partial");
+    } else if (okxMarketMode === "cache" && okxCandleMode === "live") {
+      status.textContent = "价格缓存 · K 线实时";
+      status.classList.add("partial");
+    } else if (okxMarketMode === "cache") {
+      status.textContent = "国内兼容缓存 · " + formatOkxUpdatedAt(okxMarketUpdatedAt);
+      status.classList.add("cached");
+    } else if (okxMarketMode === "loading") {
+      status.textContent = "正在连接欧易公开行情";
+    } else {
+      status.textContent = "行情与本站缓存暂不可用";
+      status.classList.add("offline");
+    }
+  }
+
+  function updateOkxFooter(rows = okxMarketData) {
+    const timestamps = rows.map(row => Number(row.ts)).filter(Number.isFinite);
+    const newest = okxMarketUpdatedAt || (timestamps.length ? Math.max(...timestamps) : 0);
+    const sourceLabel = okxMarketMode === "live" ? "欧易价格实时 " + formatOkxUpdatedAt(newest)
+      : okxMarketMode === "partial" ? "价格实时 + 本站缓存 " + formatOkxUpdatedAt(newest)
+        : okxMarketMode === "cache" ? "本站价格缓存 " + formatOkxUpdatedAt(newest)
+          : okxMarketMode === "offline" ? "价格暂不可用"
+            : "价格连接中";
+    const candleLabel = okxCandleMode === "live" ? "K 线实时"
+      : okxCandleMode === "cache" ? "K 线缓存 " + formatOkxUpdatedAt(okxCandleUpdatedAt)
+        : okxCandleMode === "offline" ? "K 线暂不可用"
+          : "K 线连接中";
+    setText("#okxMarketUpdated", sourceLabel + " · " + candleLabel
+      + " · " + rows.length + "/" + OKX_MARKETS.length + " 个交易对");
+  }
+
+  function setOkxMarketStatus(mode, count, updatedAt) {
+    okxMarketMode = mode;
+    okxMarketCount = count;
+    if (updatedAt) okxMarketUpdatedAt = Number(updatedAt) || okxMarketUpdatedAt;
+    renderOkxAvailabilityStatus();
+    updateOkxFooter();
+  }
+
+  function setOkxCandleStatus(mode, updatedAt) {
+    okxCandleMode = mode;
+    if (updatedAt) okxCandleUpdatedAt = Number(updatedAt) || okxCandleUpdatedAt;
+    renderOkxAvailabilityStatus();
+    updateOkxFooter();
+  }
+
   function renderOkxMarkets(rows) {
     const grid = $("#okxMarketGrid");
     if (!grid) return;
@@ -1018,11 +1224,7 @@
         loadOkxCandles();
       });
     });
-    const timestamps = rows.map(row => Number(row.ts)).filter(Number.isFinite);
-    const newest = timestamps.length ? Math.max(...timestamps) : Date.now();
-    setText("#okxMarketUpdated", "欧易行情更新 "
-      + new Date(newest).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
-      + " · " + rows.length + "/" + OKX_MARKETS.length + " 个交易对");
+    updateOkxFooter(rows);
   }
 
   function renderOkxActiveQuote() {
@@ -1080,17 +1282,7 @@
       if (!response.ok) throw new Error("HTTP " + response.status);
       const payload = await response.json();
       if (payload?.code !== "0" || !Array.isArray(payload.data)) throw new Error("Invalid OKX candle response");
-      return payload.data.map(row => ({
-        ts: Number(row[0]),
-        open: Number(row[1]),
-        high: Number(row[2]),
-        low: Number(row[3]),
-        close: Number(row[4]),
-        volume: Number(row[5]),
-        quoteVolume: Number(row[7]),
-        confirmed: row[8] === "1"
-      })).filter(item => [item.ts, item.open, item.high, item.low, item.close].every(Number.isFinite))
-        .sort((a, b) => a.ts - b.ts);
+      return normalizeOkxCandles(payload.data);
     } finally {
       clearTimeout(timeout);
     }
@@ -1255,30 +1447,51 @@
     }
   }
 
-  async function loadOkxCandles() {
+  async function loadOkxCandles(options = {}) {
     const canvas = $("#okxMarketChart");
     const empty = $("#okxChartEmpty");
     if (!canvas) return;
     const requestId = ++okxChartRequestId;
-    if (empty) {
+    const cached = getCachedOkxCandles(activeOkxMarket, activeOkxBar);
+    if (cached) {
+      okxCandles = cached.rows;
+      okxChartHoverIndex = null;
+      setOkxCandleStatus("cache", cached.updatedAt);
+      if (empty) empty.hidden = true;
+      drawOkxChart();
+    } else if (empty) {
+      setOkxCandleStatus("loading", 0);
       empty.hidden = false;
       empty.textContent = "正在加载 " + activeOkxMarket + " · " + activeOkxBar + " K 线…";
     }
+    if (!options.force && cached && Date.now() < okxCandleBlockedUntil) return;
     try {
       const candles = await fetchOkxCandles(activeOkxMarket, activeOkxBar);
       if (requestId !== okxChartRequestId) return;
       if (!candles.length) throw new Error("No candle data");
       okxCandles = candles;
+      saveLiveOkxCandles(activeOkxMarket, activeOkxBar, candles);
+      okxCandleBlockedUntil = 0;
+      setOkxCandleStatus("live", Date.now());
       okxChartHoverIndex = null;
       if (empty) empty.hidden = true;
       drawOkxChart();
     } catch (error) {
       if (requestId !== okxChartRequestId) return;
-      okxCandles = [];
-      updateOkxReadout(null);
-      if (empty) {
+      okxCandleBlockedUntil = Date.now() + OKX_DIRECT_RETRY_BACKOFF_MS;
+      if (cached) {
+        okxCandles = cached.rows;
+        setOkxCandleStatus("cache", cached.updatedAt);
+        if (empty) empty.hidden = true;
+        drawOkxChart();
+      } else {
+        okxCandles = [];
+        setOkxCandleStatus("offline", 0);
+        updateOkxReadout(null);
+      }
+      if (empty && !cached) {
         empty.hidden = false;
-        empty.textContent = "K 线接口暂时不可用，请稍后点击刷新重试。";
+        empty.textContent = "实时接口和本站缓存暂时都不可用，请稍后点击刷新重试。";
       }
     }
   }
@@ -1332,37 +1545,69 @@
     }
   }
 
-  async function loadOkxMarketData() {
+  async function loadOkxMarketData(options = {}) {
     const grid = $("#okxMarketGrid");
     if (!grid) return;
-    const status = $("#okxMarketStatus");
-    status?.classList.remove("online", "offline", "partial");
-    if (status) status.textContent = "正在刷新欧易公开行情";
+    const cached = getCachedOkxTickers();
+    if (!okxMarketData.length && cached) {
+      okxMarketData = cached.rows;
+      setOkxMarketStatus("cache", cached.rows.length, cached.updatedAt);
+      renderOkxMarkets(okxMarketData);
+      renderOkxActiveQuote();
+    }
+    if (!options.force && cached && Date.now() < okxTickerBlockedUntil) return;
+    if (!okxMarketData.length) setOkxMarketStatus("loading", 0, 0);
     const results = await Promise.allSettled(
       OKX_MARKETS.map(market => fetchOkxTicker(market.instId))
     );
-    const rows = results
+    const liveRows = results
       .filter(result => result.status === "fulfilled")
       .map(result => result.value);
-    if (rows.length) {
-      okxMarketData = rows;
-      renderOkxMarkets(rows);
+    if (liveRows.length) {
+      const merged = new Map((cached?.rows || okxMarketData).map(row => [row.instId, row]));
+      liveRows.forEach(row => merged.set(row.instId, row));
+      okxMarketData = OKX_MARKETS.map(market => merged.get(market.instId)).filter(Boolean);
+      const complete = liveRows.length === OKX_MARKETS.length;
+      const timestamps = liveRows.map(row => Number(row.ts)).filter(Number.isFinite);
+      okxTickerBlockedUntil = 0;
+      setOkxMarketStatus(complete ? "live" : "partial", liveRows.length,
+        timestamps.length ? Math.max(...timestamps) : Date.now());
+      if (complete) saveLiveOkxTickers(liveRows);
+      renderOkxMarkets(okxMarketData);
       renderOkxActiveQuote();
-      if (status) {
-        const complete = rows.length === OKX_MARKETS.length;
-        status.textContent = (complete ? "实时在线" : "部分行情在线")
-          + " · " + rows.length + "/" + OKX_MARKETS.length;
-        status.classList.add(complete ? "online" : "partial");
-      }
       return;
     }
-    if (okxMarketData.length) renderOkxMarkets(okxMarketData);
-    else grid.innerHTML = '<div class="market-loading">欧易公开行情暂时不可用，请稍后点击“刷新数据”重试。</div>';
-    renderOkxActiveQuote();
-    if (status) {
-      status.textContent = "行情接口暂不可用";
-      status.classList.add("offline");
+    okxTickerBlockedUntil = Date.now() + OKX_DIRECT_RETRY_BACKOFF_MS;
+    const fallback = getCachedOkxTickers();
+    if (fallback) {
+      okxMarketData = fallback.rows;
+      setOkxMarketStatus("cache", fallback.rows.length, fallback.updatedAt);
+      renderOkxMarkets(okxMarketData);
+    } else if (okxMarketData.length) {
+      setOkxMarketStatus("cache", okxMarketData.length, okxMarketUpdatedAt);
+      renderOkxMarkets(okxMarketData);
+    } else {
+      grid.innerHTML = '<div class="market-loading">实时接口和本站缓存暂时都不可用，请稍后点击“刷新数据”重试。</div>';
+      setOkxMarketStatus("offline", 0, 0);
     }
+    renderOkxActiveQuote();
+  }
+
+  function initializeOkxMarketData() {
+    const bundled = window.OKX_MARKET_SNAPSHOT;
+    okxBundledSnapshot = bundled && typeof bundled === "object" ? bundled : null;
+    okxLocalSnapshot = readOkxLocalSnapshot();
+    const cached = getCachedOkxTickers();
+    if (cached) {
+      okxMarketData = cached.rows;
+      setOkxMarketStatus("cache", cached.rows.length, cached.updatedAt);
+      renderOkxMarkets(okxMarketData);
+      renderOkxActiveQuote();
+    } else {
+      setOkxMarketStatus("loading", 0, 0);
+    }
+    loadOkxMarketData();
+    loadOkxCandles();
   }
 
   function ensureOriginRadarStructure() {
@@ -1864,15 +2109,14 @@
       if (video) setTimeout(() => openVideo(video), 0);
     }
     loadRadarData();
-    loadOkxMarketData();
-    loadOkxCandles();
+    initializeOkxMarketData();
     setInterval(loadRadarData, REFRESH_INTERVAL_MS);
     setInterval(loadOkxMarketData, OKX_REFRESH_INTERVAL_MS);
     setInterval(loadOkxCandles, OKX_CANDLE_REFRESH_INTERVAL_MS);
     $("#refreshData")?.addEventListener("click", () => {
       loadRadarData();
-      loadOkxMarketData();
-      loadOkxCandles();
+      loadOkxMarketData({ force: true });
+      loadOkxCandles({ force: true });
     });
 
     const input = $(".ai-input");

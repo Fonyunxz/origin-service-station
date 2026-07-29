@@ -584,6 +584,10 @@ body {
 }
 .market-status.online { color: var(--green-primary); }
 .market-status.partial { color: var(--orange-accent); border-color: rgba(255,171,64,.35); }
+.market-status.cached {
+  color: var(--green-secondary); border-color: rgba(214,168,75,.45);
+  background: linear-gradient(135deg, rgba(214,168,75,.12), rgba(0,0,0,.3));
+}
 .market-status.offline { color: var(--red-accent); border-color: rgba(239,83,80,.35); }
 .okx-terminal {
   display: grid; grid-template-columns: 238px minmax(0, 1fr); gap: 14px;
