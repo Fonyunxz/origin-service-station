@@ -42,7 +42,7 @@
     { instId: "XRP-USDT", symbol: "XRP", name: "XRP", accent: "#d6d6d6" },
     { instId: "DOGE-USDT", symbol: "DOGE", name: "狗狗币", accent: "#c2a633" },
     { instId: "POL-USDT", symbol: "POL", name: "Polygon", accent: "#8247e5" },
-    { instId: "DAI-USDT", symbol: "DAI", name: "DAI", accent: "#f5ac37" }
+    { instId: "USDS-USDT", symbol: "USDS", name: "Sky 稳定币", accent: "#f2a900" }
   ]);
   const remapMediaUrl = value => {
     const url = String(value || "");
@@ -958,6 +958,7 @@
     const byId = new Map(rows.map(row => [row.instId, row]));
     grid.innerHTML = OKX_MARKETS.map(market => {
       const ticker = byId.get(market.instId);
+      const available = Boolean(ticker);
       const last = Number(ticker?.last);
       const open = Number(ticker?.open24h);
       const high = Number(ticker?.high24h);
@@ -968,13 +969,15 @@
       const changeClass = Number.isFinite(change) ? (change >= 0 ? "up" : "down") : "";
       const changeText = Number.isFinite(change)
         ? (change >= 0 ? "+" : "") + change.toFixed(2) + "%" : "—";
-      return '<article class="market-coin-card" style="--coin-accent:' + market.accent + '">'
+      return '<article class="market-coin-card' + (available ? "" : " unavailable")
+        + '" style="--coin-accent:' + market.accent + '">'
         + '<div class="market-coin-head"><div class="market-coin-id">'
         + '<div class="market-coin-icon">' + escapeHtml(market.symbol.slice(0, 2)) + '</div>'
         + '<div class="market-coin-name"><b>' + escapeHtml(market.symbol) + '</b><span>'
         + escapeHtml(market.name) + ' · USDT</span></div></div>'
-        + '<span class="market-change-pill ' + changeClass + '">' + changeText + '</span></div>'
-        + '<div class="market-coin-price">' + formatMarketPrice(last) + '</div>'
+        + '<span class="market-change-pill ' + changeClass + '">' + (available ? changeText : "暂无") + '</span></div>'
+        + '<div class="market-coin-price' + (available ? "" : " unavailable-copy") + '">'
+        + (available ? formatMarketPrice(last) : "欧易暂无该交易对行情") + '</div>'
         + '<div class="market-coin-stats">'
         + '<div class="market-stat"><span>24h 高</span><b>' + formatMarketPrice(high) + '</b></div>'
         + '<div class="market-stat"><span>24h 低</span><b>' + formatMarketPrice(low) + '</b></div>'
@@ -984,26 +987,34 @@
     const timestamps = rows.map(row => Number(row.ts)).filter(Number.isFinite);
     const newest = timestamps.length ? Math.max(...timestamps) : Date.now();
     setText("#okxMarketUpdated", "欧易行情更新 "
-      + new Date(newest).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+      + new Date(newest).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+      + " · " + rows.length + "/" + OKX_MARKETS.length + " 个交易对");
   }
 
   async function fetchOkxTicker(instId) {
-    const response = await fetch(OKX_TICKER_ENDPOINT + encodeURIComponent(instId), {
-      cache: "no-store",
-      referrerPolicy: "no-referrer"
-    });
-    if (!response.ok) throw new Error("HTTP " + response.status);
-    const payload = await response.json();
-    const ticker = payload?.code === "0" && Array.isArray(payload.data) ? payload.data[0] : null;
-    if (!ticker || ticker.instId !== instId) throw new Error("Invalid OKX response");
-    return ticker;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    try {
+      const response = await fetch(OKX_TICKER_ENDPOINT + encodeURIComponent(instId), {
+        cache: "no-store",
+        referrerPolicy: "no-referrer",
+        signal: controller.signal
+      });
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      const payload = await response.json();
+      const ticker = payload?.code === "0" && Array.isArray(payload.data) ? payload.data[0] : null;
+      if (!ticker || ticker.instId !== instId) throw new Error("Invalid OKX response");
+      return ticker;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   async function loadOkxMarketData() {
     const grid = $("#okxMarketGrid");
     if (!grid) return;
     const status = $("#okxMarketStatus");
-    status?.classList.remove("online", "offline");
+    status?.classList.remove("online", "offline", "partial");
     if (status) status.textContent = "正在刷新欧易公开行情";
     const results = await Promise.allSettled(
       OKX_MARKETS.map(market => fetchOkxTicker(market.instId))
@@ -1015,8 +1026,10 @@
       okxMarketData = rows;
       renderOkxMarkets(rows);
       if (status) {
-        status.textContent = "实时在线 · " + rows.length + "/" + OKX_MARKETS.length;
-        status.classList.add("online");
+        const complete = rows.length === OKX_MARKETS.length;
+        status.textContent = (complete ? "实时在线" : "部分行情在线")
+          + " · " + rows.length + "/" + OKX_MARKETS.length;
+        status.classList.add(complete ? "online" : "partial");
       }
       return;
     }

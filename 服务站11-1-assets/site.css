@@ -407,6 +407,7 @@ body {
   border-radius: 999px; font-size: 11px;
 }
 .market-status.online { color: var(--green-primary); }
+.market-status.partial { color: var(--orange-accent); border-color: rgba(255,171,64,.35); }
 .market-status.offline { color: var(--red-accent); border-color: rgba(239,83,80,.35); }
 .okx-market-grid {
   display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;
@@ -425,6 +426,8 @@ body {
   transform: translateY(-2px); background: rgba(33,23,12,.55);
   border-color: rgba(214,168,75,.48);
 }
+.market-coin-card.unavailable { border-style: dashed; opacity: .72; }
+.market-coin-card.unavailable:hover { transform: none; }
 .market-coin-head {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   margin-bottom: 13px;
@@ -451,6 +454,9 @@ body {
   margin-bottom: 12px; overflow: hidden; color: var(--text-primary);
   font-size: clamp(18px, 2vw, 24px); font-weight: 800; letter-spacing: -.02em;
   text-overflow: ellipsis; white-space: nowrap;
+}
+.market-coin-price.unavailable-copy {
+  color: var(--text-muted); font-size: 13px; font-weight: 600; letter-spacing: 0;
 }
 .market-coin-stats {
   display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 7px;
