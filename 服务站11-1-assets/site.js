@@ -1,6 +1,13 @@
 (function () {
   "use strict";
 
+  // 防止页面被第三方站点套入 iframe 后伪装按钮或诱导点击。
+  if (window.top !== window.self) {
+    document.documentElement.style.display = "none";
+    try { window.top.location = window.self.location.href; }
+    catch (error) {}
+  }
+
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
   const setText = (selector, value) => {
@@ -8,7 +15,17 @@
     if (element) element.textContent = value;
   };
   const CONFIG = window.SITE_CONFIG || {};
-  const normalizeOrigin = value => String(value || "").trim().replace(/\/+$/, "");
+  const normalizeOrigin = value => {
+    const text = String(value || "").trim();
+    if (!text) return "";
+    try {
+      const url = new URL(text);
+      const isLocal = /^(localhost|127\.0\.0\.1|\[::1\])$/i.test(url.hostname);
+      return url.protocol === "https:" || (url.protocol === "http:" && isLocal) ? url.origin : "";
+    } catch (error) {
+      return "";
+    }
+  };
   const SOURCE_MEDIA_ORIGIN = normalizeOrigin(CONFIG.sourceMediaOrigin) || "https://media.web3origin.com";
   const MEDIA_ORIGIN = normalizeOrigin(CONFIG.mediaOrigin) || SOURCE_MEDIA_ORIGIN;
   const SOURCE_API_ORIGIN = normalizeOrigin(CONFIG.sourceApiOrigin) || "https://count.web3origin.com";
@@ -26,6 +43,9 @@
     apiOrigins.push(SOURCE_API_ORIGIN);
   }
   async function fetchApi(path, options) {
+    if (typeof path !== "string" || !path.startsWith("/") || path.startsWith("//")) {
+      throw new Error("Invalid API path");
+    }
     let lastError = new Error("API unavailable");
     for (const origin of apiOrigins) {
       try {
@@ -1162,6 +1182,16 @@
     document.documentElement.dataset.siteMode = PUBLIC_ORIGIN
       ? "public"
       : (window.location.protocol === "file:" ? "local" : "hosted");
+    $$('a[target="_blank"]').forEach(link => {
+      link.rel = "noopener noreferrer";
+      link.referrerPolicy = "no-referrer";
+    });
+    document.addEventListener("click", event => {
+      const link = event.target.closest?.('a[target="_blank"]');
+      if (!link) return;
+      link.rel = "noopener noreferrer";
+      link.referrerPolicy = "no-referrer";
+    }, true);
     if (PUBLIC_ORIGIN) {
       const canonicalUrl = PUBLIC_ORIGIN + pagePath;
       let canonical = document.querySelector('link[rel="canonical"]');
