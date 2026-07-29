@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://media.web3origin.com https://web3origin.com; media-src 'self' https://media.web3origin.com; connect-src 'self' https://count.web3origin.com https://api.gopluslabs.io; font-src 'self' data:; form-action 'self'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://media.web3origin.com https://web3origin.com; media-src 'self' https://media.web3origin.com; connect-src 'self' https://count.web3origin.com https://api.gopluslabs.io https://www.okx.com; font-src 'self' data:; form-action 'self'; upgrade-insecure-requests">
 <title>链上服务站｜Origin 生态入口</title>
 <meta name="description" content="Origin 生态课程、视频、链上数据和实用工具的独立入口。">
 <link rel="icon" type="image/png" href="服务站11-1-assets/favicon.png">
@@ -66,12 +66,12 @@
       </div>
     </a>
     <div class="nav-links">
-      <a href="index.html" class="nav-link active">首页</a>
+      <a href="#home" class="nav-link active">首页</a>
+      <a href="#radar" class="nav-link">链上雷达</a>
       <a href="academy.html" class="nav-link">学习学院</a>
       <a href="videos.html" class="nav-link">视频学院</a>
       <a href="tools.html" class="nav-link">实用工具</a>
-      <a href="radar.html" class="nav-link">链上雷达</a>
-      <a href="index.html#origin-guide" class="nav-link">Origin 专区</a>
+      <a href="#origin-guide" class="nav-link">Origin 专区</a>
       <a href="academy.html#faq" class="nav-link">常见问题</a>
     </div>
     <div class="nav-right">
@@ -161,13 +161,101 @@
       <div class="qa-desc">合约验证、钱包体检、收益计算、证据查询</div>
       <div class="qa-count">9+ 工具 · 不连钱包</div>
     </a>
-    <a class="qa-card" href="radar.html">
+    <a class="qa-card" href="#radar">
       <div class="qa-icon data">📡</div>
       <div class="qa-title">链上雷达</div>
       <div class="qa-desc">实时数据面板、链上日报、大额监测</div>
       <div class="qa-count">实时 · 独立可验证</div>
     </a>
   </div>
+
+<!-- 首页链上雷达 -->
+  <section class="section fade-up home-radar" id="radar">
+    <div class="section-header">
+      <div class="section-title">
+        链上雷达
+        <span class="tag">Origin + 欧易公开行情</span>
+      </div>
+      <a class="section-more" href="radar.html#evidence">查看完整证据库 →</a>
+    </div>
+    <div class="dashboard-grid">
+      <div class="dash-card">
+        <div class="dash-header">
+          <div class="dash-title">📊 Origin 生态核心指标</div>
+          <div class="data-status" id="radarStatus">正在连接公开数据源</div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-item">
+            <div class="metric-label">Anubis 总地址</div>
+            <div class="metric-value" id="metricAddresses">—</div>
+            <div class="metric-change" id="metricNetwork">等待数据</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">今日交易</div>
+            <div class="metric-value" id="metricTxToday">—</div>
+            <div class="metric-change up">Anubis</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">区块高度</div>
+            <div class="metric-value" id="metricBlock">—</div>
+            <div class="metric-change up" id="metricBlockTime">—</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">生态健康指数</div>
+            <div class="metric-value" id="metricHealth">—</div>
+            <div class="metric-change" id="metricRisk">机械计算参考</div>
+          </div>
+        </div>
+        <div class="chart-area">
+          <svg viewBox="0 0 600 120" preserveAspectRatio="none" aria-label="LGNS 公开价格趋势">
+            <defs>
+              <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="rgba(214,168,75,0.34)"/>
+                <stop offset="100%" stop-color="rgba(214,168,75,0)"/>
+              </linearGradient>
+            </defs>
+            <path id="marketLine" d="M0,100 L600,100" fill="none" stroke="var(--green-primary)" stroke-width="2"/>
+            <path id="marketArea" d="M0,100 L600,100 L600,120 L0,120 Z" fill="url(#chartGrad)"/>
+          </svg>
+          <div class="chart-labels">
+            <span>较早</span><span></span><span>LGNS 公开接口趋势</span><span></span><span>现在</span>
+          </div>
+        </div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-header">
+          <div class="dash-title">📰 Origin 链上日报</div>
+          <span class="dash-tab active" id="radarUpdated">等待刷新</span>
+        </div>
+        <div class="daily-list">
+          <div class="daily-row"><div class="daily-left"><div class="daily-dot green"></div><span class="daily-name">LGNS 价格</span></div><span class="daily-val" id="dailyPrice">—</span></div>
+          <div class="daily-row"><div class="daily-left"><div class="daily-dot blue"></div><span class="daily-name">总供应量</span></div><span class="daily-val" id="dailySupply">—</span></div>
+          <div class="daily-row"><div class="daily-left"><div class="daily-dot orange"></div><span class="daily-name">质押量</span></div><span class="daily-val" id="dailyStaked">—</span></div>
+          <div class="daily-row"><div class="daily-left"><div class="daily-dot purple"></div><span class="daily-name">国库资产</span></div><span class="daily-val" id="dailyTreasury">—</span></div>
+          <div class="daily-row"><div class="daily-left"><div class="daily-dot green"></div><span class="daily-name">LP 流动性</span></div><span class="daily-val" id="dailyLp">—</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="live-source-note">Origin 数据每 60 秒自动刷新；接口不可用时显示“—”，不会用静态数字冒充实时数据。</p>
+
+    <div class="market-panel">
+      <div class="market-panel-head">
+        <div>
+          <span class="market-kicker">OKX SPOT MARKET</span>
+          <h3>欧易主流币实时行情</h3>
+          <p>只读取欧易公开现货行情，不需要 API Key，不连接账户，不提供交易操作。</p>
+        </div>
+        <div class="market-status" id="okxMarketStatus" aria-live="polite">正在连接欧易公开行情</div>
+      </div>
+      <div class="okx-market-grid" id="okxMarketGrid">
+        <div class="market-loading">正在读取 BTC、ETH、SOL、OKB 等实时数据…</div>
+      </div>
+      <div class="market-foot">
+        <span id="okxMarketUpdated">等待首次刷新</span>
+        <a href="https://www.okx.com/docs-v5/en/#rest-api-market-data-get-tickers" target="_blank" rel="noopener noreferrer">欧易公开行情说明 ↗</a>
+      </div>
+    </div>
+  </section>
 
 <!-- Origin 生态概览 -->
   <div class="section fade-up" id="origin-guide">

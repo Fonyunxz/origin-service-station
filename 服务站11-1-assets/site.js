@@ -32,6 +32,18 @@
   const API_ORIGIN = normalizeOrigin(CONFIG.apiOrigin) || SOURCE_API_ORIGIN;
   const PUBLIC_ORIGIN = normalizeOrigin(CONFIG.publicOrigin);
   const REFRESH_INTERVAL_MS = Math.max(15000, Number(CONFIG.refreshIntervalMs) || 60000);
+  const OKX_REFRESH_INTERVAL_MS = 30000;
+  const OKX_TICKER_ENDPOINT = "https://www.okx.com/api/v5/market/ticker?instId=";
+  const OKX_MARKETS = Object.freeze([
+    { instId: "BTC-USDT", symbol: "BTC", name: "比特币", accent: "#f7931a" },
+    { instId: "ETH-USDT", symbol: "ETH", name: "以太坊", accent: "#8c8c8c" },
+    { instId: "SOL-USDT", symbol: "SOL", name: "Solana", accent: "#14f195" },
+    { instId: "OKB-USDT", symbol: "OKB", name: "OKB", accent: "#3075ee" },
+    { instId: "XRP-USDT", symbol: "XRP", name: "XRP", accent: "#d6d6d6" },
+    { instId: "DOGE-USDT", symbol: "DOGE", name: "狗狗币", accent: "#c2a633" },
+    { instId: "POL-USDT", symbol: "POL", name: "Polygon", accent: "#8247e5" },
+    { instId: "DAI-USDT", symbol: "DAI", name: "DAI", accent: "#f5ac37" }
+  ]);
   const remapMediaUrl = value => {
     const url = String(value || "");
     return MEDIA_ORIGIN !== SOURCE_MEDIA_ORIGIN && url.startsWith(SOURCE_MEDIA_ORIGIN + "/")
@@ -75,6 +87,7 @@
   let radarData = null;
   let activeTool = null;
   let lastFocusedElement = null;
+  let okxMarketData = [];
 
   function escapeHtml(value) {
     return String(value == null ? "" : value).replace(/[&<>"']/g, char => ({
@@ -927,6 +940,94 @@
     }).join(" ");
   }
 
+  function formatMarketPrice(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return "—";
+    let digits = 2;
+    if (Math.abs(number) < 1) digits = 4;
+    if (Math.abs(number) < 0.01) digits = 6;
+    return "$" + number.toLocaleString("en-US", {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits
+    });
+  }
+
+  function renderOkxMarkets(rows) {
+    const grid = $("#okxMarketGrid");
+    if (!grid) return;
+    const byId = new Map(rows.map(row => [row.instId, row]));
+    grid.innerHTML = OKX_MARKETS.map(market => {
+      const ticker = byId.get(market.instId);
+      const last = Number(ticker?.last);
+      const open = Number(ticker?.open24h);
+      const high = Number(ticker?.high24h);
+      const low = Number(ticker?.low24h);
+      const volume = Number(ticker?.volCcy24h);
+      const change = Number.isFinite(last) && Number.isFinite(open) && open !== 0
+        ? (last / open - 1) * 100 : NaN;
+      const changeClass = Number.isFinite(change) ? (change >= 0 ? "up" : "down") : "";
+      const changeText = Number.isFinite(change)
+        ? (change >= 0 ? "+" : "") + change.toFixed(2) + "%" : "—";
+      return '<article class="market-coin-card" style="--coin-accent:' + market.accent + '">'
+        + '<div class="market-coin-head"><div class="market-coin-id">'
+        + '<div class="market-coin-icon">' + escapeHtml(market.symbol.slice(0, 2)) + '</div>'
+        + '<div class="market-coin-name"><b>' + escapeHtml(market.symbol) + '</b><span>'
+        + escapeHtml(market.name) + ' · USDT</span></div></div>'
+        + '<span class="market-change-pill ' + changeClass + '">' + changeText + '</span></div>'
+        + '<div class="market-coin-price">' + formatMarketPrice(last) + '</div>'
+        + '<div class="market-coin-stats">'
+        + '<div class="market-stat"><span>24h 高</span><b>' + formatMarketPrice(high) + '</b></div>'
+        + '<div class="market-stat"><span>24h 低</span><b>' + formatMarketPrice(low) + '</b></div>'
+        + '<div class="market-stat"><span>24h 成交</span><b>' + formatUSD(volume) + '</b></div>'
+        + '</div></article>';
+    }).join("");
+    const timestamps = rows.map(row => Number(row.ts)).filter(Number.isFinite);
+    const newest = timestamps.length ? Math.max(...timestamps) : Date.now();
+    setText("#okxMarketUpdated", "欧易行情更新 "
+      + new Date(newest).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+  }
+
+  async function fetchOkxTicker(instId) {
+    const response = await fetch(OKX_TICKER_ENDPOINT + encodeURIComponent(instId), {
+      cache: "no-store",
+      referrerPolicy: "no-referrer"
+    });
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    const payload = await response.json();
+    const ticker = payload?.code === "0" && Array.isArray(payload.data) ? payload.data[0] : null;
+    if (!ticker || ticker.instId !== instId) throw new Error("Invalid OKX response");
+    return ticker;
+  }
+
+  async function loadOkxMarketData() {
+    const grid = $("#okxMarketGrid");
+    if (!grid) return;
+    const status = $("#okxMarketStatus");
+    status?.classList.remove("online", "offline");
+    if (status) status.textContent = "正在刷新欧易公开行情";
+    const results = await Promise.allSettled(
+      OKX_MARKETS.map(market => fetchOkxTicker(market.instId))
+    );
+    const rows = results
+      .filter(result => result.status === "fulfilled")
+      .map(result => result.value);
+    if (rows.length) {
+      okxMarketData = rows;
+      renderOkxMarkets(rows);
+      if (status) {
+        status.textContent = "实时在线 · " + rows.length + "/" + OKX_MARKETS.length;
+        status.classList.add("online");
+      }
+      return;
+    }
+    if (okxMarketData.length) renderOkxMarkets(okxMarketData);
+    else grid.innerHTML = '<div class="market-loading">欧易公开行情暂时不可用，请稍后点击“刷新数据”重试。</div>';
+    if (status) {
+      status.textContent = "行情接口暂不可用";
+      status.classList.add("offline");
+    }
+  }
+
   async function loadRadarData() {
     const status = $("#radarStatus");
     const globalStatus = $("#globalDataStatus");
@@ -1236,8 +1337,13 @@
       if (video) setTimeout(() => openVideo(video), 0);
     }
     loadRadarData();
+    loadOkxMarketData();
     setInterval(loadRadarData, REFRESH_INTERVAL_MS);
-    $("#refreshData")?.addEventListener("click", loadRadarData);
+    setInterval(loadOkxMarketData, OKX_REFRESH_INTERVAL_MS);
+    $("#refreshData")?.addEventListener("click", () => {
+      loadRadarData();
+      loadOkxMarketData();
+    });
 
     const input = $(".ai-input");
     const send = $(".ai-send");

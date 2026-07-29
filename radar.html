@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://media.web3origin.com https://web3origin.com; media-src 'self' https://media.web3origin.com; connect-src 'self' https://count.web3origin.com https://api.gopluslabs.io; font-src 'self' data:; form-action 'self'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://media.web3origin.com https://web3origin.com; media-src 'self' https://media.web3origin.com; connect-src 'self' https://count.web3origin.com https://api.gopluslabs.io https://www.okx.com; font-src 'self' data:; form-action 'self'; upgrade-insecure-requests">
 <title>链上雷达与证据库｜链上服务站</title>
 <meta name="description" content="实时链上数据、日报、大额成交监测和可核验事件档案。">
 <link rel="icon" type="image/png" href="服务站11-1-assets/favicon.png">
@@ -67,10 +67,10 @@
     </a>
     <div class="nav-links">
       <a href="index.html" class="nav-link">首页</a>
+      <a href="index.html#radar" class="nav-link active">链上雷达</a>
       <a href="academy.html" class="nav-link">学习学院</a>
       <a href="videos.html" class="nav-link">视频学院</a>
       <a href="tools.html" class="nav-link">实用工具</a>
-      <a href="radar.html" class="nav-link active">链上雷达</a>
       <a href="index.html#origin-guide" class="nav-link">Origin 专区</a>
       <a href="academy.html#faq" class="nav-link">常见问题</a>
     </div>
@@ -184,6 +184,34 @@
     </div>
     <p class="live-source-note">数据读取自 Web3Origin 公开聚合接口，并自动每 60 秒刷新；接口不可用时显示“—”，不会用静态数字冒充实时数据。健康指数仅为公开指标的机械计算参考，不构成投资建议。</p>
   </div>
+
+<!-- 欧易公开现货行情 -->
+  <section class="section fade-up" id="okx-market">
+    <div class="section-header">
+      <div class="section-title">
+        欧易主流币行情
+        <span class="tag">OKX 现货 · 30 秒刷新</span>
+      </div>
+      <span class="section-more">只读公开数据</span>
+    </div>
+    <div class="market-panel">
+      <div class="market-panel-head">
+        <div>
+          <span class="market-kicker">OKX SPOT MARKET</span>
+          <h3>除了 LGNS，也能看主流币</h3>
+          <p>显示最新价、24 小时涨跌、最高/最低和成交量；不连接欧易账户，不提供下单操作。</p>
+        </div>
+        <div class="market-status" id="okxMarketStatus" aria-live="polite">正在连接欧易公开行情</div>
+      </div>
+      <div class="okx-market-grid" id="okxMarketGrid">
+        <div class="market-loading">正在读取 BTC、ETH、SOL、OKB 等实时数据…</div>
+      </div>
+      <div class="market-foot">
+        <span id="okxMarketUpdated">等待首次刷新</span>
+        <a href="https://www.okx.com/docs-v5/en/#rest-api-market-data-get-tickers" target="_blank" rel="noopener noreferrer">欧易公开行情说明 ↗</a>
+      </div>
+    </div>
+  </section>
 
 <!-- 链上证据库 -->
   <div class="section fade-up" id="evidence">
