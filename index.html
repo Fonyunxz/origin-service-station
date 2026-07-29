@@ -8,7 +8,7 @@
 <title>链上服务站｜Origin 生态入口</title>
 <meta name="description" content="Origin 生态课程、视频、链上数据和实用工具的独立入口。">
 <link rel="icon" type="image/png" href="服务站11-1-assets/favicon.png">
-<link rel="stylesheet" href="服务站11-1-assets/site.css?v=20260729-icons1">
+<link rel="stylesheet" href="服务站11-1-assets/site.css?v=20260729-themeicons1">
 </head>
 <body data-page="home">
 <div class="origin-bg" aria-hidden="true"><img src="服务站11-1-assets/bg.png" alt=""></div>
@@ -59,7 +59,7 @@
 <nav class="navbar">
   <div class="nav-container">
     <a class="nav-left" href="index.html" aria-label="返回首页" style="text-decoration:none">
-      <div class="logo-icon">⛓</div>
+      <div class="logo-icon"><span class="theme-icon i-orbit" aria-hidden="true"></span></div>
       <div class="logo-text">
         <span class="logo-title">链上服务站</span>
         <span class="logo-sub">独立服务站 · 非项目官方</span>
@@ -76,7 +76,7 @@
     </div>
     <div class="nav-right">
       <button class="nav-mobile-toggle" id="navToggle" aria-label="打开导航菜单" aria-expanded="false">☰</button>
-      <button class="btn-ghost" id="refreshData" type="button">↻ 刷新数据</button>
+      <button class="btn-ghost" id="refreshData" type="button"><span class="theme-icon i-refresh" aria-hidden="true"></span>刷新数据</button>
       <button class="btn-ghost" id="localInfoBtn" type="button">资料说明</button>
       <a class="nav-cta" href="academy.html">进入学院</a>
     </div>
@@ -87,7 +87,7 @@
   <div class="hero fade-up">
     <div class="hero-left">
       <div class="hero-badge">
-        <span style="font-size:14px">🌱</span>
+        <span class="theme-icon i-sprout" aria-hidden="true"></span>
         从 Web3 小白到链上研究者的一站式服务站
       </div>
       <h1 class="hero-title">
@@ -120,7 +120,7 @@
     <div class="hero-right">
       <div class="ai-card">
         <div class="ai-card-header">
-          <div class="ai-avatar">🤖</div>
+          <div class="ai-avatar"><span class="theme-icon i-sparkles" aria-hidden="true"></span></div>
           <div>
             <div class="ai-card-title">智能学习助手</div>
             <div class="ai-status">
@@ -134,7 +134,8 @@
           <button class="ai-send">➜</button>
         </div>
         <div class="ai-hint">
-          💡 试试：如何查看奖励？ · LGNS 质押收益怎么算？ · 涡轮是什么？
+          <span class="theme-icon i-lightbulb" aria-hidden="true"></span>
+          试试：如何查看奖励？ · LGNS 质押收益怎么算？ · 涡轮是什么？
         </div>
         <div class="ai-results" id="aiResults" aria-live="polite"></div>
       </div>
@@ -144,25 +145,25 @@
 <!-- 快速入口 -->
   <div class="quick-access fade-up">
     <a class="qa-card" href="academy.html">
-      <div class="qa-icon learn">📚</div>
+      <div class="qa-icon learn"><span class="theme-icon i-graduation" aria-hidden="true"></span></div>
       <div class="qa-title">学习学院</div>
       <div class="qa-desc">5级系统课程，从 Web3 入门到链上研究者</div>
       <div class="qa-count">36 节课 · 免费</div>
     </a>
     <a class="qa-card" href="videos.html">
-      <div class="qa-icon video">▶️</div>
+      <div class="qa-icon video"><span class="theme-icon i-play" aria-hidden="true"></span></div>
       <div class="qa-title">视频学院</div>
       <div class="qa-desc">用视频看懂 Origin 生态，新手实操一步步教</div>
       <div class="qa-count"><span id="quickVideoCount">61</span> 部视频 · 实操</div>
     </a>
     <a class="qa-card" href="tools.html">
-      <div class="qa-icon tools">🛠️</div>
+      <div class="qa-icon tools"><span class="theme-icon i-wrench" aria-hidden="true"></span></div>
       <div class="qa-title">实用工具</div>
       <div class="qa-desc">合约验证、钱包体检、收益计算、证据查询</div>
       <div class="qa-count">9+ 工具 · 不连钱包</div>
     </a>
     <a class="qa-card" href="#radar">
-      <div class="qa-icon data">📡</div>
+      <div class="qa-icon data"><span class="theme-icon i-radar" aria-hidden="true"></span></div>
       <div class="qa-title">链上雷达</div>
       <div class="qa-desc">实时数据面板、链上日报、大额监测</div>
       <div class="qa-count">实时 · 独立可验证</div>
@@ -184,7 +185,7 @@
     <div class="dashboard-grid">
       <div class="dash-card">
         <div class="dash-header">
-          <div class="dash-title">📊 Origin 生态核心指标</div>
+          <div class="dash-title radar-heading"><span class="theme-icon i-chart" aria-hidden="true"></span>Origin 生态核心指标</div>
           <div class="data-status" id="radarStatus">正在连接公开数据源</div>
         </div>
         <div class="metric-row">
@@ -356,12 +357,12 @@
   </div>
 </div>
 
-<button class="back-to-top" id="backToTop" type="button" aria-label="返回顶部" title="返回顶部">↑</button>
+<button class="back-to-top" id="backToTop" type="button" aria-label="返回顶部" title="返回顶部"><span class="theme-icon i-arrow-up" aria-hidden="true"></span></button>
 <footer class="footer">
   <div class="footer-inner">
     <div>
       <div class="footer-brand">
-        <div class="logo-title" style="display:flex;align-items:center;gap:8px"><span style="font-size:24px">⛓</span>链上服务站</div>
+        <div class="logo-title" style="display:flex;align-items:center;gap:8px"><span class="footer-brand-mark"><span class="theme-icon i-orbit" aria-hidden="true"></span></span>链上服务站</div>
         <div class="logo-sub">Origin 生态独立服务站</div>
       </div>
       <div class="footer-desc">不代管资产 · 不连接钱包 · 公开数据可独立验证<br>从 Web3 入门到链上研究的一站式学习与查询入口</div>
@@ -382,6 +383,6 @@
 <script src="服务站11-1-assets/videos.js"></script>
 <script src="服务站11-1-assets/contracts.js"></script>
 <script src="服务站11-1-assets/events.js"></script>
-<script src="服务站11-1-assets/site.js?v=20260729-icons1"></script>
+<script src="服务站11-1-assets/site.js?v=20260729-themeicons1"></script>
 </body>
 </html>

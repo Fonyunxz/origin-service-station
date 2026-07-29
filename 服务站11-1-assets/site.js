@@ -730,15 +730,28 @@
 
   function videoCategoryName(category) {
     return ({
-      "lgns-basic": "🪙 LGNS 基础",
-      howto: "🎯 上手实操",
-      web3: "🌱 Web3 基础",
-      security: "🔐 钱包安全",
-      defi: "💧 DeFi 入门",
-      origin: "🏛️ Origin 生态",
-      tools: "🛠️ 链上工具",
-      research: "🔬 研究报告"
+      "lgns-basic": "LGNS 基础",
+      howto: "上手实操",
+      web3: "Web3 基础",
+      security: "钱包安全",
+      defi: "DeFi 入门",
+      origin: "Origin 生态",
+      tools: "链上工具",
+      research: "研究报告"
     })[category] || "视频课";
+  }
+
+  function videoCategoryIcon(category) {
+    return ({
+      "lgns-basic": "i-gem",
+      howto: "i-target",
+      web3: "i-sprout",
+      security: "i-lock",
+      defi: "i-droplets",
+      origin: "i-landmark",
+      tools: "i-wrench",
+      research: "i-microscope"
+    })[category] || "i-play";
   }
 
   function renderVideos() {
@@ -773,7 +786,9 @@
         + '<div class="video-thumb"><img src="' + escapeHtml(poster) + '" alt="' + escapeHtml(video.title) + ' 视频封面" loading="lazy">'
         + '<div class="video-play-btn">▶</div><div class="video-duration">' + escapeHtml(video.durText || "") + "</div>"
         + '<div class="vid-prog-track" aria-hidden="true"><div class="vid-prog" style="width:' + Math.min(100, watched) + '%"></div></div></div>'
-        + '<div class="video-card-body"><div class="video-cat">' + escapeHtml(videoCategoryName(video.cat)) + "</div>"
+        + '<div class="video-card-body"><div class="video-cat"><span class="theme-icon '
+        + escapeHtml(videoCategoryIcon(video.cat)) + '" aria-hidden="true"></span>'
+        + escapeHtml(videoCategoryName(video.cat)) + "</div>"
         + '<div class="video-title">' + escapeHtml(video.title) + "</div>"
         + '<div class="video-desc">' + escapeHtml(video.desc || "") + "</div>"
         + '<div class="video-card-foot"><span>' + (watched >= 90 ? "✓ 已看完" : watched > 0 ? "已看 " + Math.round(watched) + "%" : "公开课") + "</span><span>立即播放</span></div>"
@@ -905,12 +920,14 @@
     const links = [
       ...courseSlugs.map(slug => {
         const course = COURSES.find(item => item.slug === slug);
-        return course ? '<button type="button" data-ai-course="' + escapeHtml(slug) + '">📖 '
+        return course ? '<button type="button" data-ai-course="' + escapeHtml(slug)
+          + '"><span class="theme-icon i-graduation" aria-hidden="true"></span>'
           + escapeHtml(course.title) + "</button>" : "";
       }),
       ...videoSlugs.map(slug => {
         const video = VIDEOS.find(item => item.slug === slug);
-        return video ? '<button type="button" data-ai-video="' + escapeHtml(slug) + '">▶ '
+        return video ? '<button type="button" data-ai-video="' + escapeHtml(slug)
+          + '"><span class="theme-icon i-play" aria-hidden="true"></span>'
           + escapeHtml(video.title) + "</button>" : "";
       })
     ].filter(Boolean);
@@ -1354,7 +1371,7 @@
     root.dataset.ready = "1";
     root.innerHTML = ''
       + '<div class="origin-radar-topbar"><div class="origin-radar-brand">'
-      + '<span class="origin-radar-mark">✥</span><div><div class="origin-radar-title">起源链上雷达 <em>Origin On-chain Radar</em></div>'
+      + '<span class="origin-radar-mark"><span class="theme-icon i-orbit" aria-hidden="true"></span></span><div><div class="origin-radar-title">起源链上雷达 <em>Origin On-chain Radar</em></div>'
       + '<p>实时追踪 LGNS、Anubis Chain 生态链上状态，数据可逐项核实</p></div></div>'
       + '<div class="origin-network-box"><span id="originRadarUpdated">等待首次更新</span>'
       + '<div><b class="network-pill" id="originAnubisStatus">● Anubis 检测中</b>'
@@ -1379,13 +1396,13 @@
       + '<path id="originTreasuryArea" fill="rgba(214,168,75,.1)"></path><path id="originTreasuryLine" fill="none" stroke="#d6a84b" stroke-width="3"></path></svg>'
       + '<dl><div><dt>无风险价值</dt><dd id="originRiskFree">—</dd></div><div><dt>累计销毁</dt><dd id="originBurn">—</dd></div></dl></article></div>'
       + '<div class="origin-detail-grid">'
-      + '<article class="origin-detail-card events-panel"><header><h3>⚡ 实时链上事件</h3><span>最近成交 · 可查交易</span></header><div class="origin-event-list" id="originEventList"></div></article>'
-      + '<article class="origin-detail-card health-panel"><header><h3>◆ 生态健康指数</h3><span>5 项机械评分</span></header>'
+      + '<article class="origin-detail-card events-panel"><header><h3 class="radar-heading"><span class="theme-icon i-zap" aria-hidden="true"></span>实时链上事件</h3><span>最近成交 · 可查交易</span></header><div class="origin-event-list" id="originEventList"></div></article>'
+      + '<article class="origin-detail-card health-panel"><header><h3 class="radar-heading"><span class="theme-icon i-heart-pulse" aria-hidden="true"></span>生态健康指数</h3><span>5 项机械评分</span></header>'
       + '<div class="origin-health-layout"><div class="origin-health-ring" id="originHealthRing"><strong id="originHealthScore">—</strong><small>/ 100</small></div>'
       + '<div class="origin-health-parts" id="originHealthParts"></div></div>'
       + '<p class="origin-method-note">评分只根据流动性、链上活跃、质押、供应稳定与安全透明五项公开指标计算，不构成投资建议。</p></article>'
-      + '<article class="origin-detail-card whale-panel"><header><h3>🐋 鲸鱼动态</h3><span>大额成交追踪</span></header><div class="origin-whale-list" id="originWhaleList"></div></article>'
-      + '<article class="origin-detail-card risk-panel"><header><h3>⚠ 链上风险雷达</h3><span class="risk-level" id="originRiskLevel">检测中</span></header>'
+      + '<article class="origin-detail-card whale-panel"><header><h3 class="radar-heading"><span class="theme-icon i-activity" aria-hidden="true"></span>鲸鱼动态</h3><span>大额成交追踪</span></header><div class="origin-whale-list" id="originWhaleList"></div></article>'
+      + '<article class="origin-detail-card risk-panel"><header><h3 class="radar-heading"><span class="theme-icon i-alert" aria-hidden="true"></span>链上风险雷达</h3><span class="risk-level" id="originRiskLevel">检测中</span></header>'
       + '<div class="origin-risk-items" id="originRiskItems"></div></article></div>';
   }
 
@@ -1427,7 +1444,7 @@
     list.innerHTML = rows.length ? rows.map(event => {
       const direction = event.dir === "buy" ? "buy" : "sell";
       return '<a class="origin-whale-row" href="' + escapeHtml(explorerTx(String(event.tx || ""), "polygon"))
-        + '" target="_blank" rel="noopener noreferrer"><span>🐋</span><span class="origin-side ' + direction + '">'
+        + '" target="_blank" rel="noopener noreferrer"><span class="whale-signal-icon"><span class="theme-icon i-activity" aria-hidden="true"></span></span><span class="origin-side ' + direction + '">'
         + (direction === "buy" ? "买入" : "卖出") + '</span><b>' + escapeHtml(formatNumber(event.lgns))
         + ' LGNS</b><strong>' + escapeHtml(formatUSD(event.dai)) + '</strong><time>' + escapeHtml(originTimeAgo(event.ts))
         + "</time></a>";
@@ -1471,8 +1488,10 @@
     const items = Array.isArray(risk?.items) ? risk.items : [];
     root.innerHTML = items.length ? items.map(item =>
       '<div class="origin-risk-item ' + (item.t === "warn" || item.t === "risk" ? "warn" : "info")
-      + '"><span>◆</span><p>' + escapeHtml(item.m || "风险提示") + "</p></div>"
-    ).join("") : '<div class="origin-risk-item info"><span>◆</span><p>当前没有新增风险提示</p></div>';
+      + '"><span class="risk-symbol"><span class="theme-icon '
+      + (item.t === "warn" || item.t === "risk" ? "i-alert" : "i-radar")
+      + '" aria-hidden="true"></span></span><p>' + escapeHtml(item.m || "风险提示") + "</p></div>"
+    ).join("") : '<div class="origin-risk-item info"><span class="risk-symbol"><span class="theme-icon i-radar" aria-hidden="true"></span></span><p>当前没有新增风险提示</p></div>';
   }
 
   function renderOriginRadar(data) {

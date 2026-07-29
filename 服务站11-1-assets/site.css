@@ -1141,9 +1141,121 @@ body {
 .global-bar { background: rgba(5, 3, 3, .8); }
 .navbar { background: rgba(8, 4, 4, .9); }
 .logo-icon {
-  border-radius: 50%; color: #210507;
-  background: radial-gradient(circle, var(--green-secondary), var(--green-primary) 55%, #7a0b12);
+  position: relative; overflow: visible; border-radius: 12px; color: var(--green-secondary);
+  background:
+    radial-gradient(circle at 50% 42%, rgba(240,212,138,.2), transparent 42%),
+    linear-gradient(145deg, rgba(61,13,15,.98), rgba(14,5,5,.98));
+  border: 1px solid rgba(240,212,138,.46);
+  box-shadow: inset 0 0 0 1px rgba(122,11,18,.55), 0 0 22px rgba(214,168,75,.18);
 }
+.logo-icon::before, .logo-icon::after {
+  content: ""; position: absolute; inset: 5px; border: 1px solid rgba(214,168,75,.25);
+  transform: rotate(45deg); pointer-events: none;
+}
+.logo-icon::after { inset: 9px; border-color: rgba(240,212,138,.15); transform: rotate(0); }
+.theme-icon {
+  --icon-size: 1em;
+  display: inline-block; width: var(--icon-size); height: var(--icon-size); flex: 0 0 auto;
+  color: inherit; background: currentColor;
+  -webkit-mask: var(--icon) center / contain no-repeat;
+  mask: var(--icon) center / contain no-repeat;
+}
+.i-orbit { --icon: url("ui-icons/orbit.svg"); }
+.i-sparkles { --icon: url("ui-icons/sparkles.svg"); }
+.i-graduation { --icon: url("ui-icons/graduation-cap.svg"); }
+.i-play { --icon: url("ui-icons/circle-play.svg"); }
+.i-wrench { --icon: url("ui-icons/wrench.svg"); }
+.i-radar { --icon: url("ui-icons/radar.svg"); }
+.i-search-check { --icon: url("ui-icons/search-check.svg"); }
+.i-scan-heart { --icon: url("ui-icons/scan-heart.svg"); }
+.i-shield-check { --icon: url("ui-icons/shield-check.svg"); }
+.i-evidence { --icon: url("ui-icons/notebook-tabs.svg"); }
+.i-chart { --icon: url("ui-icons/chart-no-axes-combined.svg"); }
+.i-radio { --icon: url("ui-icons/radio-tower.svg"); }
+.i-calculator { --icon: url("ui-icons/calculator.svg"); }
+.i-user-search { --icon: url("ui-icons/user-round-search.svg"); }
+.i-zap { --icon: url("ui-icons/zap.svg"); }
+.i-heart-pulse { --icon: url("ui-icons/heart-pulse.svg"); }
+.i-activity { --icon: url("ui-icons/activity.svg"); }
+.i-alert { --icon: url("ui-icons/triangle-alert.svg"); }
+.i-gem { --icon: url("ui-icons/gem.svg"); }
+.i-target { --icon: url("ui-icons/target.svg"); }
+.i-sprout { --icon: url("ui-icons/sprout.svg"); }
+.i-lock { --icon: url("ui-icons/lock-keyhole.svg"); }
+.i-droplets { --icon: url("ui-icons/droplets.svg"); }
+.i-landmark { --icon: url("ui-icons/landmark.svg"); }
+.i-microscope { --icon: url("ui-icons/microscope.svg"); }
+.i-refresh { --icon: url("ui-icons/refresh-cw.svg"); }
+.i-arrow-up { --icon: url("ui-icons/arrow-up.svg"); }
+.i-lightbulb { --icon: url("ui-icons/lightbulb.svg"); }
+.logo-icon .theme-icon { --icon-size: 22px; position: relative; z-index: 1; }
+.btn-ghost .theme-icon { --icon-size: 13px; margin-right: 5px; vertical-align: -2px; }
+.hero-badge .theme-icon, .ai-hint .theme-icon { --icon-size: 14px; }
+.btn-ghost { display: inline-flex; align-items: center; justify-content: center; }
+.ai-hint { display: flex; align-items: flex-start; gap: 6px; }
+.ai-hint .theme-icon { margin-top: 1px; color: var(--green-secondary); }
+.ai-result-links button { display: inline-flex; align-items: center; gap: 6px; }
+.ai-result-links .theme-icon { --icon-size: 12px; color: var(--green-secondary); }
+.ai-avatar {
+  position: relative; color: var(--green-secondary);
+  background:
+    radial-gradient(circle at 50% 35%, rgba(240,212,138,.18), transparent 38%),
+    linear-gradient(145deg, rgba(63,12,15,.9), rgba(12,5,5,.95));
+  border-color: rgba(214,168,75,.42);
+  box-shadow: inset 0 0 0 1px rgba(122,11,18,.4), 0 0 22px rgba(214,168,75,.12);
+}
+.ai-avatar .theme-icon { --icon-size: 25px; filter: drop-shadow(0 0 7px rgba(240,212,138,.32)); }
+.qa-icon, .tool-icon {
+  position: relative; color: var(--green-secondary);
+  background:
+    radial-gradient(circle at 50% 38%, rgba(240,212,138,.16), transparent 40%),
+    linear-gradient(145deg, rgba(53,11,13,.86), rgba(10,5,5,.94)) !important;
+  border-color: rgba(214,168,75,.34);
+  box-shadow: inset 0 0 0 1px rgba(122,11,18,.36), 0 8px 24px rgba(0,0,0,.24);
+}
+.qa-icon::after, .tool-icon::after {
+  content: ""; position: absolute; inset: 5px; border: 1px solid rgba(214,168,75,.13);
+  border-radius: 8px; pointer-events: none;
+}
+.qa-icon .theme-icon { --icon-size: 24px; filter: drop-shadow(0 0 8px rgba(240,212,138,.25)); }
+.tool-icon .theme-icon { --icon-size: 20px; filter: drop-shadow(0 0 7px rgba(240,212,138,.22)); }
+.qa-card:hover .qa-icon, .tool-card:hover .tool-icon {
+  color: #ffe7a7; border-color: rgba(240,212,138,.68);
+  box-shadow: inset 0 0 0 1px rgba(122,11,18,.5), 0 0 24px rgba(214,168,75,.18);
+}
+.radar-heading {
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.radar-heading .theme-icon { --icon-size: 15px; color: var(--green-primary); }
+.origin-radar-mark {
+  border: 1px solid rgba(182,242,61,.28); border-radius: 12px;
+  background: rgba(8,20,8,.48);
+}
+.origin-radar-mark .theme-icon { --icon-size: 26px; }
+.whale-signal-icon {
+  display: inline-grid; place-items: center; width: 20px; height: 20px;
+  color: #67d8ff; border: 1px solid rgba(103,216,255,.22); border-radius: 6px;
+  background: rgba(103,216,255,.06);
+}
+.whale-signal-icon .theme-icon { --icon-size: 12px; }
+.risk-symbol {
+  display: inline-grid; place-items: center; width: 19px; height: 19px; flex: 0 0 auto;
+  color: #4da3ff; border-radius: 5px; background: rgba(77,163,255,.08);
+}
+.origin-risk-item.warn .risk-symbol { color: #ffb74d; background: rgba(255,183,77,.08); }
+.risk-symbol .theme-icon { --icon-size: 11px; }
+.video-cat {
+  display: flex; align-items: center; gap: 6px;
+}
+.video-cat .theme-icon { --icon-size: 12px; color: var(--green-secondary); }
+.path-tag .theme-icon { --icon-size: 12px; margin-right: 4px; vertical-align: -2px; color: var(--green-secondary); }
+.footer-brand-mark {
+  display: inline-grid; place-items: center; width: 30px; height: 30px;
+  color: var(--green-secondary); border: 1px solid rgba(214,168,75,.32); border-radius: 9px;
+  background: linear-gradient(145deg, rgba(61,13,15,.9), rgba(12,5,5,.95));
+}
+.footer-brand-mark .theme-icon { --icon-size: 17px; }
+.back-to-top .theme-icon { --icon-size: 18px; }
 .hero, .ai-card, .dash-card, .qa-card, .tool-card, .course-card, .video-card {
   backdrop-filter: blur(10px);
 }

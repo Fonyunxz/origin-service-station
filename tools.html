@@ -8,7 +8,7 @@
 <title>实用工具｜链上服务站</title>
 <meta name="description" content="合约验证、钱包体检、安全检测、收益计算和推荐关系查询工具。">
 <link rel="icon" type="image/png" href="服务站11-1-assets/favicon.png">
-<link rel="stylesheet" href="服务站11-1-assets/site.css">
+  <link rel="stylesheet" href="服务站11-1-assets/site.css?v=20260729-themeicons1">
 </head>
 <body data-page="tools">
 <div class="origin-bg" aria-hidden="true"><img src="服务站11-1-assets/bg.png" alt=""></div>
@@ -59,7 +59,7 @@
 <nav class="navbar">
   <div class="nav-container">
     <a class="nav-left" href="index.html" aria-label="返回首页" style="text-decoration:none">
-      <div class="logo-icon">⛓</div>
+      <div class="logo-icon"><span class="theme-icon i-orbit" aria-hidden="true"></span></div>
       <div class="logo-text">
         <span class="logo-title">链上服务站</span>
         <span class="logo-sub">独立服务站 · 非项目官方</span>
@@ -76,7 +76,7 @@
     </div>
     <div class="nav-right">
       <button class="nav-mobile-toggle" id="navToggle" aria-label="打开导航菜单" aria-expanded="false">☰</button>
-      <button class="btn-ghost" id="refreshData" type="button">↻ 刷新数据</button>
+      <button class="btn-ghost" id="refreshData" type="button"><span class="theme-icon i-refresh" aria-hidden="true"></span>刷新数据</button>
       <button class="btn-ghost" id="localInfoBtn" type="button">资料说明</button>
       <a class="nav-cta" href="academy.html">进入学院</a>
     </div>
@@ -95,7 +95,7 @@
     <div class="tools-grid">
       <a class="tool-card" href="#tools" data-tool="contracts">
         <div class="tool-header">
-          <div class="tool-icon">🔍</div>
+          <div class="tool-icon"><span class="theme-icon i-search-check" aria-hidden="true"></span></div>
           <div class="tool-name">合约验证中心</div>
         </div>
         <div class="tool-desc">61个合约全验证，开源/代理/可升级/Owner/多签状态一览</div>
@@ -103,7 +103,7 @@
       </a>
       <a class="tool-card" href="#tools" data-tool="wallet">
         <div class="tool-header">
-          <div class="tool-icon">🩺</div>
+          <div class="tool-icon"><span class="theme-icon i-scan-heart" aria-hidden="true"></span></div>
           <div class="tool-name">钱包监控·链上体检</div>
         </div>
         <div class="tool-desc">任意地址身份、资产、活动时间线、授权风险全面体检</div>
@@ -111,7 +111,7 @@
       </a>
       <a class="tool-card" href="#tools" data-tool="security">
         <div class="tool-header">
-          <div class="tool-icon">🛡</div>
+          <div class="tool-icon"><span class="theme-icon i-shield-check" aria-hidden="true"></span></div>
           <div class="tool-name">代币安全自查</div>
         </div>
         <div class="tool-desc">多维度检测代币风险：增发/暂停/拉黑/改税率/动国库</div>
@@ -119,7 +119,7 @@
       </a>
       <a class="tool-card" href="#tools" data-tool="evidence">
         <div class="tool-header">
-          <div class="tool-icon">📋</div>
+          <div class="tool-icon"><span class="theme-icon i-evidence" aria-hidden="true"></span></div>
           <div class="tool-name">链上证据库</div>
         </div>
         <div class="tool-desc">从LGNS创世到Anubis上线的关键事件，每条带真实交易哈希</div>
@@ -127,7 +127,7 @@
       </a>
       <a class="tool-card" href="#tools" data-tool="dashboard">
         <div class="tool-header">
-          <div class="tool-icon">📊</div>
+          <div class="tool-icon"><span class="theme-icon i-chart" aria-hidden="true"></span></div>
           <div class="tool-name">链上数据面板</div>
         </div>
         <div class="tool-desc">活跃地址/交易笔数/大额转账/可疑地址 实时监控</div>
@@ -135,7 +135,7 @@
       </a>
       <a class="tool-card" href="#tools" data-tool="whales">
         <div class="tool-header">
-          <div class="tool-icon">📡</div>
+          <div class="tool-icon"><span class="theme-icon i-radio" aria-hidden="true"></span></div>
           <div class="tool-name">大额成交监测</div>
         </div>
         <div class="tool-desc">追溯链上大额成交动态，24h异动预警</div>
@@ -143,7 +143,7 @@
       </a>
       <a class="tool-card" href="#tools" data-tool="calculator">
         <div class="tool-header">
-          <div class="tool-icon">🧮</div>
+          <div class="tool-icon"><span class="theme-icon i-calculator" aria-hidden="true"></span></div>
           <div class="tool-name">收益计算器</div>
         </div>
         <div class="tool-desc">(3,3)质押收益模拟，奖励收益测算心中有数</div>
@@ -151,7 +151,7 @@
       </a>
       <a class="tool-card" href="#tools" data-tool="referrer">
         <div class="tool-header">
-          <div class="tool-icon">👤</div>
+          <div class="tool-icon"><span class="theme-icon i-user-search" aria-hidden="true"></span></div>
           <div class="tool-name">查推荐人</div>
         </div>
         <div class="tool-desc">推荐关系链上查询，层级与收益追踪</div>
@@ -181,12 +181,12 @@
   </div>
 </div>
 
-<button class="back-to-top" id="backToTop" type="button" aria-label="返回顶部" title="返回顶部">↑</button>
+<button class="back-to-top" id="backToTop" type="button" aria-label="返回顶部" title="返回顶部"><span class="theme-icon i-arrow-up" aria-hidden="true"></span></button>
 <footer class="footer">
   <div class="footer-inner">
     <div>
       <div class="footer-brand">
-        <div class="logo-title" style="display:flex;align-items:center;gap:8px"><span style="font-size:24px">⛓</span>链上服务站</div>
+        <div class="logo-title" style="display:flex;align-items:center;gap:8px"><span class="footer-brand-mark"><span class="theme-icon i-orbit" aria-hidden="true"></span></span>链上服务站</div>
         <div class="logo-sub">Origin 生态独立服务站</div>
       </div>
       <div class="footer-desc">不代管资产 · 不连接钱包 · 公开数据可独立验证<br>从 Web3 入门到链上研究的一站式学习与查询入口</div>
@@ -207,6 +207,6 @@
 <script src="服务站11-1-assets/videos.js"></script>
 <script src="服务站11-1-assets/contracts.js"></script>
 <script src="服务站11-1-assets/events.js"></script>
-<script src="服务站11-1-assets/site.js"></script>
+<script src="服务站11-1-assets/site.js?v=20260729-themeicons1"></script>
 </body>
 </html>
