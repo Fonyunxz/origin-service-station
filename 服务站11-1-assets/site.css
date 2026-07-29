@@ -617,10 +617,14 @@ body {
 }
 .market-watch-icon, .market-active-icon {
   display: grid; place-items: center; flex-shrink: 0;
-  border-radius: 9px; color: #090704; background: var(--coin-accent, #d8a94a);
-  font-size: 11px; font-weight: 900; box-shadow: 0 0 18px color-mix(in srgb, var(--coin-accent, #d8a94a) 24%, transparent);
+  overflow: hidden; border-radius: 50%; color: #090704; background: transparent;
+  font-size: 11px; font-weight: 900;
+  box-shadow: 0 0 18px color-mix(in srgb, var(--coin-accent, #d8a94a) 22%, transparent);
 }
 .market-watch-icon { width: 32px; height: 32px; }
+.market-watch-icon img, .market-active-icon img {
+  display: block; width: 100%; height: 100%; object-fit: contain;
+}
 .market-watch-pair, .market-watch-quote { min-width: 0; }
 .market-watch-pair b, .market-watch-pair small,
 .market-watch-quote b, .market-watch-quote small { display: block; }

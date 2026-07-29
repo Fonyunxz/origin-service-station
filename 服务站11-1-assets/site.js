@@ -37,12 +37,12 @@
   const OKX_TICKER_ENDPOINT = "https://www.okx.com/api/v5/market/ticker?instId=";
   const OKX_CANDLE_ENDPOINT = "https://www.okx.com/api/v5/market/candles";
   const OKX_MARKETS = Object.freeze([
-    { instId: "BTC-USDT", symbol: "BTC", name: "比特币", accent: "#f7931a" },
-    { instId: "ETH-USDT", symbol: "ETH", name: "以太坊", accent: "#8c8c8c" },
-    { instId: "SOL-USDT", symbol: "SOL", name: "Solana", accent: "#14f195" },
-    { instId: "XRP-USDT", symbol: "XRP", name: "XRP", accent: "#d6d6d6" },
-    { instId: "DOGE-USDT", symbol: "DOGE", name: "狗狗币", accent: "#c2a633" },
-    { instId: "OKB-USDT", symbol: "OKB", name: "OKB", accent: "#3075ee" }
+    { instId: "BTC-USDT", symbol: "BTC", name: "比特币", accent: "#f7931a", icon: "服务站11-1-assets/coin-icons/btc.png" },
+    { instId: "ETH-USDT", symbol: "ETH", name: "以太坊", accent: "#627eea", icon: "服务站11-1-assets/coin-icons/eth.png" },
+    { instId: "SOL-USDT", symbol: "SOL", name: "Solana", accent: "#14f195", icon: "服务站11-1-assets/coin-icons/sol.png" },
+    { instId: "XRP-USDT", symbol: "XRP", name: "XRP", accent: "#5f6368", icon: "服务站11-1-assets/coin-icons/xrp.png" },
+    { instId: "DOGE-USDT", symbol: "DOGE", name: "狗狗币", accent: "#c2a633", icon: "服务站11-1-assets/coin-icons/doge.png" },
+    { instId: "OKB-USDT", symbol: "OKB", name: "OKB", accent: "#3075ee", icon: "服务站11-1-assets/coin-icons/okb.png" }
   ]);
   const remapMediaUrl = value => {
     const url = String(value || "");
@@ -985,7 +985,8 @@
         + '" type="button" data-okx-market="' + escapeHtml(market.instId)
         + '" aria-pressed="' + String(selected)
         + '" style="--coin-accent:' + market.accent + '">'
-        + '<span class="market-watch-icon">' + escapeHtml(market.symbol.slice(0, 2)) + '</span>'
+        + '<span class="market-watch-icon"><img src="' + escapeHtml(market.icon)
+        + '" alt="" width="32" height="32"></span>'
         + '<span class="market-watch-pair"><b>' + escapeHtml(market.symbol)
         + '</b><small>' + escapeHtml(market.name) + '</small></span>'
         + '<span class="market-watch-quote"><b>' + formatMarketPrice(ticker?.last)
@@ -1012,9 +1013,12 @@
     const ticker = okxMarketData.find(item => item.instId === market.instId);
     const change = marketChange(ticker);
     const changeElement = $("#okxActiveChange");
-    setText("#okxActiveIcon", market.symbol.slice(0, 2));
     const icon = $("#okxActiveIcon");
-    if (icon) icon.style.setProperty("--coin-accent", market.accent);
+    if (icon) {
+      icon.style.setProperty("--coin-accent", market.accent);
+      icon.innerHTML = '<img src="' + escapeHtml(market.icon) + '" alt="' + escapeHtml(market.name)
+        + '" width="40" height="40">';
+    }
     setText("#okxActiveSymbol", market.symbol + " / USDT");
     setText("#okxActiveName", market.name + " · 欧易现货");
     setText("#okxActivePrice", formatMarketPrice(ticker?.last));
