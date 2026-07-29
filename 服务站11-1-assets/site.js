@@ -32,17 +32,17 @@
   const API_ORIGIN = normalizeOrigin(CONFIG.apiOrigin) || SOURCE_API_ORIGIN;
   const PUBLIC_ORIGIN = normalizeOrigin(CONFIG.publicOrigin);
   const REFRESH_INTERVAL_MS = Math.max(15000, Number(CONFIG.refreshIntervalMs) || 60000);
-  const OKX_REFRESH_INTERVAL_MS = 30000;
+  const OKX_REFRESH_INTERVAL_MS = 10000;
+  const OKX_CANDLE_REFRESH_INTERVAL_MS = 15000;
   const OKX_TICKER_ENDPOINT = "https://www.okx.com/api/v5/market/ticker?instId=";
+  const OKX_CANDLE_ENDPOINT = "https://www.okx.com/api/v5/market/candles";
   const OKX_MARKETS = Object.freeze([
     { instId: "BTC-USDT", symbol: "BTC", name: "比特币", accent: "#f7931a" },
     { instId: "ETH-USDT", symbol: "ETH", name: "以太坊", accent: "#8c8c8c" },
     { instId: "SOL-USDT", symbol: "SOL", name: "Solana", accent: "#14f195" },
-    { instId: "OKB-USDT", symbol: "OKB", name: "OKB", accent: "#3075ee" },
     { instId: "XRP-USDT", symbol: "XRP", name: "XRP", accent: "#d6d6d6" },
     { instId: "DOGE-USDT", symbol: "DOGE", name: "狗狗币", accent: "#c2a633" },
-    { instId: "POL-USDT", symbol: "POL", name: "Polygon", accent: "#8247e5" },
-    { instId: "USDS-USDT", symbol: "USDS", name: "Sky 稳定币", accent: "#f2a900" }
+    { instId: "OKB-USDT", symbol: "OKB", name: "OKB", accent: "#3075ee" }
   ]);
   const remapMediaUrl = value => {
     const url = String(value || "");
@@ -88,6 +88,13 @@
   let activeTool = null;
   let lastFocusedElement = null;
   let okxMarketData = [];
+  let okxCandles = [];
+  let activeOkxMarket = "BTC-USDT";
+  let activeOkxBar = "15m";
+  let activeOkxChartMode = "candles";
+  let okxChartRequestId = 0;
+  let okxChartHoverIndex = null;
+  let okxChartResizeObserver = null;
 
   function escapeHtml(value) {
     return String(value == null ? "" : value).replace(/[&<>"']/g, char => ({
@@ -952,43 +959,72 @@
     });
   }
 
+  function marketChange(ticker) {
+    const last = Number(ticker?.last);
+    const open = Number(ticker?.open24h);
+    return Number.isFinite(last) && Number.isFinite(open) && open !== 0
+      ? (last / open - 1) * 100
+      : NaN;
+  }
+
+  function formatChange(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? (number >= 0 ? "+" : "") + number.toFixed(2) + "%" : "—";
+  }
+
   function renderOkxMarkets(rows) {
     const grid = $("#okxMarketGrid");
     if (!grid) return;
     const byId = new Map(rows.map(row => [row.instId, row]));
     grid.innerHTML = OKX_MARKETS.map(market => {
       const ticker = byId.get(market.instId);
-      const available = Boolean(ticker);
-      const last = Number(ticker?.last);
-      const open = Number(ticker?.open24h);
-      const high = Number(ticker?.high24h);
-      const low = Number(ticker?.low24h);
-      const volume = Number(ticker?.volCcy24h);
-      const change = Number.isFinite(last) && Number.isFinite(open) && open !== 0
-        ? (last / open - 1) * 100 : NaN;
+      const change = marketChange(ticker);
       const changeClass = Number.isFinite(change) ? (change >= 0 ? "up" : "down") : "";
-      const changeText = Number.isFinite(change)
-        ? (change >= 0 ? "+" : "") + change.toFixed(2) + "%" : "—";
-      return '<article class="market-coin-card' + (available ? "" : " unavailable")
+      const selected = market.instId === activeOkxMarket;
+      return '<button class="market-watch-item' + (selected ? " active" : "")
+        + '" type="button" data-okx-market="' + escapeHtml(market.instId)
+        + '" aria-pressed="' + String(selected)
         + '" style="--coin-accent:' + market.accent + '">'
-        + '<div class="market-coin-head"><div class="market-coin-id">'
-        + '<div class="market-coin-icon">' + escapeHtml(market.symbol.slice(0, 2)) + '</div>'
-        + '<div class="market-coin-name"><b>' + escapeHtml(market.symbol) + '</b><span>'
-        + escapeHtml(market.name) + ' · USDT</span></div></div>'
-        + '<span class="market-change-pill ' + changeClass + '">' + (available ? changeText : "暂无") + '</span></div>'
-        + '<div class="market-coin-price' + (available ? "" : " unavailable-copy") + '">'
-        + (available ? formatMarketPrice(last) : "欧易暂无该交易对行情") + '</div>'
-        + '<div class="market-coin-stats">'
-        + '<div class="market-stat"><span>24h 高</span><b>' + formatMarketPrice(high) + '</b></div>'
-        + '<div class="market-stat"><span>24h 低</span><b>' + formatMarketPrice(low) + '</b></div>'
-        + '<div class="market-stat"><span>24h 成交</span><b>' + formatUSD(volume) + '</b></div>'
-        + '</div></article>';
+        + '<span class="market-watch-icon">' + escapeHtml(market.symbol.slice(0, 2)) + '</span>'
+        + '<span class="market-watch-pair"><b>' + escapeHtml(market.symbol)
+        + '</b><small>' + escapeHtml(market.name) + '</small></span>'
+        + '<span class="market-watch-quote"><b>' + formatMarketPrice(ticker?.last)
+        + '</b><small class="' + changeClass + '">' + formatChange(change) + "</small></span></button>";
     }).join("");
+    $$("[data-okx-market]", grid).forEach(button => {
+      button.addEventListener("click", () => {
+        activeOkxMarket = button.dataset.okxMarket;
+        okxChartHoverIndex = null;
+        renderOkxMarkets(okxMarketData);
+        renderOkxActiveQuote();
+        loadOkxCandles();
+      });
+    });
     const timestamps = rows.map(row => Number(row.ts)).filter(Number.isFinite);
     const newest = timestamps.length ? Math.max(...timestamps) : Date.now();
     setText("#okxMarketUpdated", "欧易行情更新 "
       + new Date(newest).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
       + " · " + rows.length + "/" + OKX_MARKETS.length + " 个交易对");
+  }
+
+  function renderOkxActiveQuote() {
+    const market = OKX_MARKETS.find(item => item.instId === activeOkxMarket) || OKX_MARKETS[0];
+    const ticker = okxMarketData.find(item => item.instId === market.instId);
+    const change = marketChange(ticker);
+    const changeElement = $("#okxActiveChange");
+    setText("#okxActiveIcon", market.symbol.slice(0, 2));
+    const icon = $("#okxActiveIcon");
+    if (icon) icon.style.setProperty("--coin-accent", market.accent);
+    setText("#okxActiveSymbol", market.symbol + " / USDT");
+    setText("#okxActiveName", market.name + " · 欧易现货");
+    setText("#okxActivePrice", formatMarketPrice(ticker?.last));
+    setText("#okxActiveHigh", formatMarketPrice(ticker?.high24h));
+    setText("#okxActiveLow", formatMarketPrice(ticker?.low24h));
+    setText("#okxActiveVolume", formatUSD(ticker?.volCcy24h));
+    if (changeElement) {
+      changeElement.textContent = formatChange(change) + " · 24h";
+      changeElement.className = Number.isFinite(change) ? (change >= 0 ? "up" : "down") : "";
+    }
   }
 
   async function fetchOkxTicker(instId) {
@@ -1010,6 +1046,271 @@
     }
   }
 
+  async function fetchOkxCandles(instId, bar) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    try {
+      const params = new URLSearchParams({ instId, bar, limit: "100" });
+      const response = await fetch(OKX_CANDLE_ENDPOINT + "?" + params.toString(), {
+        cache: "no-store",
+        referrerPolicy: "no-referrer",
+        signal: controller.signal
+      });
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      const payload = await response.json();
+      if (payload?.code !== "0" || !Array.isArray(payload.data)) throw new Error("Invalid OKX candle response");
+      return payload.data.map(row => ({
+        ts: Number(row[0]),
+        open: Number(row[1]),
+        high: Number(row[2]),
+        low: Number(row[3]),
+        close: Number(row[4]),
+        volume: Number(row[5]),
+        quoteVolume: Number(row[7]),
+        confirmed: row[8] === "1"
+      })).filter(item => [item.ts, item.open, item.high, item.low, item.close].every(Number.isFinite))
+        .sort((a, b) => a.ts - b.ts);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  function updateOkxReadout(candle) {
+    setText("#okxReadOpen", candle ? formatMarketPrice(candle.open) : "—");
+    setText("#okxReadHigh", candle ? formatMarketPrice(candle.high) : "—");
+    setText("#okxReadLow", candle ? formatMarketPrice(candle.low) : "—");
+    setText("#okxReadClose", candle ? formatMarketPrice(candle.close) : "—");
+    setText("#okxReadVolume", candle ? formatNumber(candle.volume) : "—");
+  }
+
+  function formatChartTime(timestamp) {
+    const date = new Date(timestamp);
+    if (activeOkxBar === "1D") {
+      return (date.getMonth() + 1) + "/" + date.getDate();
+    }
+    return date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
+  }
+
+  function drawOkxChart() {
+    const canvas = $("#okxMarketChart");
+    const wrap = $("#okxChartWrap");
+    if (!canvas || !wrap || !okxCandles.length) return;
+    const width = Math.max(320, Math.round(wrap.clientWidth));
+    const height = Math.max(300, Math.round(wrap.clientHeight));
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    canvas.style.width = width + "px";
+    canvas.style.height = height + "px";
+    const context = canvas.getContext("2d");
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    context.clearRect(0, 0, width, height);
+
+    const candles = okxCandles;
+    const pad = { left: 12, right: 76, top: 14, bottom: 28 };
+    const plotWidth = width - pad.left - pad.right;
+    const priceBottom = Math.round(height * .72);
+    const volumeTop = priceBottom + 20;
+    const volumeBottom = height - pad.bottom;
+    const lows = candles.map(item => item.low);
+    const highs = candles.map(item => item.high);
+    let minimum = Math.min(...lows);
+    let maximum = Math.max(...highs);
+    const margin = (maximum - minimum || Math.abs(maximum) * .01 || 1) * .08;
+    minimum -= margin;
+    maximum += margin;
+    const range = maximum - minimum || 1;
+    const priceY = value => pad.top + (maximum - value) / range * (priceBottom - pad.top);
+    const volumeMax = Math.max(...candles.map(item => item.volume), 1);
+
+    context.font = "10px system-ui, sans-serif";
+    context.textAlign = "left";
+    context.textBaseline = "middle";
+    for (let index = 0; index <= 4; index += 1) {
+      const ratio = index / 4;
+      const y = pad.top + ratio * (priceBottom - pad.top);
+      context.strokeStyle = "rgba(214,168,75,.11)";
+      context.lineWidth = 1;
+      context.beginPath();
+      context.moveTo(pad.left, y);
+      context.lineTo(pad.left + plotWidth, y);
+      context.stroke();
+      const value = maximum - ratio * range;
+      context.fillStyle = "rgba(211,183,127,.72)";
+      context.fillText(formatMarketPrice(value).replace("$", ""), pad.left + plotWidth + 8, y);
+    }
+
+    const slot = plotWidth / candles.length;
+    if (activeOkxChartMode === "line") {
+      const gradient = context.createLinearGradient(0, pad.top, 0, priceBottom);
+      gradient.addColorStop(0, "rgba(0,230,118,.28)");
+      gradient.addColorStop(1, "rgba(0,230,118,0)");
+      context.beginPath();
+      candles.forEach((candle, index) => {
+        const x = pad.left + (index + .5) * slot;
+        const y = priceY(candle.close);
+        if (index) context.lineTo(x, y);
+        else context.moveTo(x, y);
+      });
+      context.lineTo(pad.left + (candles.length - .5) * slot, priceBottom);
+      context.lineTo(pad.left + .5 * slot, priceBottom);
+      context.closePath();
+      context.fillStyle = gradient;
+      context.fill();
+      context.beginPath();
+      candles.forEach((candle, index) => {
+        const x = pad.left + (index + .5) * slot;
+        const y = priceY(candle.close);
+        if (index) context.lineTo(x, y);
+        else context.moveTo(x, y);
+      });
+      context.strokeStyle = "#00e676";
+      context.lineWidth = 2;
+      context.stroke();
+    } else {
+      const bodyWidth = Math.max(1, Math.min(9, slot * .66));
+      candles.forEach((candle, index) => {
+        const x = pad.left + (index + .5) * slot;
+        const rising = candle.close >= candle.open;
+        const color = rising ? "#00e676" : "#ef5350";
+        const openY = priceY(candle.open);
+        const closeY = priceY(candle.close);
+        context.strokeStyle = color;
+        context.fillStyle = color;
+        context.lineWidth = 1;
+        context.beginPath();
+        context.moveTo(x, priceY(candle.high));
+        context.lineTo(x, priceY(candle.low));
+        context.stroke();
+        context.fillRect(x - bodyWidth / 2, Math.min(openY, closeY), bodyWidth, Math.max(1, Math.abs(closeY - openY)));
+      });
+    }
+
+    candles.forEach((candle, index) => {
+      const x = pad.left + (index + .5) * slot;
+      const barHeight = Math.max(1, candle.volume / volumeMax * (volumeBottom - volumeTop));
+      context.fillStyle = candle.close >= candle.open ? "rgba(0,230,118,.38)" : "rgba(239,83,80,.38)";
+      context.fillRect(x - Math.max(1, slot * .25), volumeBottom - barHeight, Math.max(1, slot * .5), barHeight);
+    });
+
+    const latest = candles[candles.length - 1];
+    const latestY = priceY(latest.close);
+    context.setLineDash([4, 4]);
+    context.strokeStyle = latest.close >= latest.open ? "rgba(0,230,118,.75)" : "rgba(239,83,80,.75)";
+    context.beginPath();
+    context.moveTo(pad.left, latestY);
+    context.lineTo(pad.left + plotWidth, latestY);
+    context.stroke();
+    context.setLineDash([]);
+
+    [0, .25, .5, .75, 1].forEach(ratio => {
+      const index = Math.min(candles.length - 1, Math.round((candles.length - 1) * ratio));
+      const x = pad.left + (index + .5) * slot;
+      context.fillStyle = "rgba(155,129,95,.75)";
+      context.textAlign = ratio === 0 ? "left" : ratio === 1 ? "right" : "center";
+      context.fillText(formatChartTime(candles[index].ts), x, height - 10);
+    });
+
+    if (Number.isInteger(okxChartHoverIndex) && candles[okxChartHoverIndex]) {
+      const candle = candles[okxChartHoverIndex];
+      const x = pad.left + (okxChartHoverIndex + .5) * slot;
+      const y = priceY(candle.close);
+      context.setLineDash([3, 3]);
+      context.strokeStyle = "rgba(240,212,138,.65)";
+      context.beginPath();
+      context.moveTo(x, pad.top);
+      context.lineTo(x, volumeBottom);
+      context.moveTo(pad.left, y);
+      context.lineTo(pad.left + plotWidth, y);
+      context.stroke();
+      context.setLineDash([]);
+      context.fillStyle = "#f0d48a";
+      context.beginPath();
+      context.arc(x, y, 3, 0, Math.PI * 2);
+      context.fill();
+      updateOkxReadout(candle);
+    } else {
+      updateOkxReadout(latest);
+    }
+  }
+
+  async function loadOkxCandles() {
+    const canvas = $("#okxMarketChart");
+    const empty = $("#okxChartEmpty");
+    if (!canvas) return;
+    const requestId = ++okxChartRequestId;
+    if (empty) {
+      empty.hidden = false;
+      empty.textContent = "正在加载 " + activeOkxMarket + " · " + activeOkxBar + " K 线…";
+    }
+    try {
+      const candles = await fetchOkxCandles(activeOkxMarket, activeOkxBar);
+      if (requestId !== okxChartRequestId) return;
+      if (!candles.length) throw new Error("No candle data");
+      okxCandles = candles;
+      okxChartHoverIndex = null;
+      if (empty) empty.hidden = true;
+      drawOkxChart();
+    } catch (error) {
+      if (requestId !== okxChartRequestId) return;
+      okxCandles = [];
+      updateOkxReadout(null);
+      if (empty) {
+        empty.hidden = false;
+        empty.textContent = "K 线接口暂时不可用，请稍后点击刷新重试。";
+      }
+    }
+  }
+
+  function initOkxMarketUi() {
+    const canvas = $("#okxMarketChart");
+    if (!canvas || canvas.dataset.bound === "1") return;
+    canvas.dataset.bound = "1";
+    $$("[data-chart-mode]").forEach(button =>
+      button.setAttribute("aria-pressed", String(button.dataset.chartMode === activeOkxChartMode)));
+    $$("[data-chart-bar]").forEach(button =>
+      button.setAttribute("aria-pressed", String(button.dataset.chartBar === activeOkxBar)));
+    $$("[data-chart-mode]").forEach(button => {
+      button.addEventListener("click", () => {
+        activeOkxChartMode = button.dataset.chartMode;
+        $$("[data-chart-mode]").forEach(item => {
+          item.classList.toggle("active", item === button);
+          item.setAttribute("aria-pressed", String(item === button));
+        });
+        drawOkxChart();
+      });
+    });
+    $$("[data-chart-bar]").forEach(button => {
+      button.addEventListener("click", () => {
+        activeOkxBar = button.dataset.chartBar;
+        $$("[data-chart-bar]").forEach(item => {
+          item.classList.toggle("active", item === button);
+          item.setAttribute("aria-pressed", String(item === button));
+        });
+        loadOkxCandles();
+      });
+    });
+    canvas.addEventListener("pointermove", event => {
+      if (!okxCandles.length) return;
+      const rect = canvas.getBoundingClientRect();
+      const plotLeft = 12;
+      const plotWidth = Math.max(1, rect.width - 88);
+      const x = Math.max(0, Math.min(plotWidth - 1, event.clientX - rect.left - plotLeft));
+      okxChartHoverIndex = Math.max(0, Math.min(okxCandles.length - 1, Math.floor(x / plotWidth * okxCandles.length)));
+      drawOkxChart();
+    });
+    canvas.addEventListener("pointerleave", () => {
+      okxChartHoverIndex = null;
+      drawOkxChart();
+    });
+    if ("ResizeObserver" in window) {
+      okxChartResizeObserver = new ResizeObserver(() => drawOkxChart());
+      okxChartResizeObserver.observe($("#okxChartWrap"));
+    } else {
+      window.addEventListener("resize", drawOkxChart, { passive: true });
+    }
+  }
+
   async function loadOkxMarketData() {
     const grid = $("#okxMarketGrid");
     if (!grid) return;
@@ -1025,6 +1326,7 @@
     if (rows.length) {
       okxMarketData = rows;
       renderOkxMarkets(rows);
+      renderOkxActiveQuote();
       if (status) {
         const complete = rows.length === OKX_MARKETS.length;
         status.textContent = (complete ? "实时在线" : "部分行情在线")
@@ -1035,10 +1337,191 @@
     }
     if (okxMarketData.length) renderOkxMarkets(okxMarketData);
     else grid.innerHTML = '<div class="market-loading">欧易公开行情暂时不可用，请稍后点击“刷新数据”重试。</div>';
+    renderOkxActiveQuote();
     if (status) {
       status.textContent = "行情接口暂不可用";
       status.classList.add("offline");
     }
+  }
+
+  function ensureOriginRadarStructure() {
+    const root = $("#originRadarDashboard");
+    if (!root || root.dataset.ready === "1") return;
+    root.dataset.ready = "1";
+    root.innerHTML = ''
+      + '<div class="origin-radar-topbar"><div class="origin-radar-brand">'
+      + '<span class="origin-radar-mark">✥</span><div><div class="origin-radar-title">起源链上雷达 <em>Origin On-chain Radar</em></div>'
+      + '<p>实时追踪 LGNS、Anubis Chain 生态链上状态，数据可逐项核实</p></div></div>'
+      + '<div class="origin-network-box"><span id="originRadarUpdated">等待首次更新</span>'
+      + '<div><b class="network-pill" id="originAnubisStatus">● Anubis 检测中</b>'
+      + '<b class="network-pill" id="originPolygonStatus">● Polygon 检测中</b>'
+      + '<b class="network-pill" id="originRadarStatus">● 数据接口连接中</b></div></div></div>'
+      + '<div class="origin-kpi-grid">'
+      + '<article class="origin-kpi-card featured"><span class="origin-kpi-label">LGNS / DAI</span>'
+      + '<div class="origin-kpi-value-line"><strong id="originLgnsPrice">—</strong><span id="originLgnsChange">—</span></div>'
+      + '<svg class="origin-mini-chart" viewBox="0 0 600 120" preserveAspectRatio="none" aria-label="LGNS 价格走势">'
+      + '<defs><linearGradient id="originPriceGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#00e676" stop-opacity=".25"/><stop offset="1" stop-color="#00e676" stop-opacity="0"/></linearGradient></defs>'
+      + '<path id="originPriceArea" fill="url(#originPriceGradient)"></path><path id="originPriceLine" fill="none" stroke="#00e676" stroke-width="3"></path></svg>'
+      + '<dl><div><dt>市值</dt><dd id="originMarketCap">—</dd></div><div><dt>流通供应</dt><dd id="originSupply">—</dd></div></dl></article>'
+      + '<article class="origin-kpi-card"><span class="origin-kpi-label">ANUBIS CHAIN</span><strong id="originHeight">—</strong><small>最新区块高度</small>'
+      + '<dl><div><dt>出块时间</dt><dd id="originBlockTime">—</dd></div><div><dt>TPS</dt><dd id="originTps">—</dd></div><div><dt>Gas</dt><dd id="originGas">—</dd></div><div><dt>总地址</dt><dd id="originAddresses">—</dd></div></dl></article>'
+      + '<article class="origin-kpi-card"><span class="origin-kpi-label">ECO / 生态</span><strong id="originStakeRate">—</strong><small>全网质押率</small>'
+      + '<dl><div><dt>质押量</dt><dd id="originStaked">—</dd></div><div><dt>生态 TVL</dt><dd id="originTvl">—</dd></div><div><dt>LP 流动性</dt><dd id="originLp">—</dd></div></dl></article>'
+      + '<article class="origin-kpi-card"><span class="origin-kpi-label">WALLET / 钱包</span><strong id="originWalletAddresses">—</strong><small>Anubis 总地址</small>'
+      + '<dl><div><dt>今日交易</dt><dd id="originTxToday">—</dd></div><div><dt>累计交易</dt><dd id="originTxTotal">—</dd></div><div><dt>网络利用率</dt><dd id="originUtil">—</dd></div></dl></article>'
+      + '<article class="origin-kpi-card treasury"><span class="origin-kpi-label">TREASURY / 国库</span>'
+      + '<div class="origin-kpi-value-line"><strong id="originTreasuryValue">—</strong><span id="originTreasuryChange">—</span></div>'
+      + '<svg class="origin-mini-chart" viewBox="0 0 600 120" preserveAspectRatio="none" aria-label="国库价值走势">'
+      + '<path id="originTreasuryArea" fill="rgba(214,168,75,.1)"></path><path id="originTreasuryLine" fill="none" stroke="#d6a84b" stroke-width="3"></path></svg>'
+      + '<dl><div><dt>无风险价值</dt><dd id="originRiskFree">—</dd></div><div><dt>累计销毁</dt><dd id="originBurn">—</dd></div></dl></article></div>'
+      + '<div class="origin-detail-grid">'
+      + '<article class="origin-detail-card events-panel"><header><h3>⚡ 实时链上事件</h3><span>最近成交 · 可查交易</span></header><div class="origin-event-list" id="originEventList"></div></article>'
+      + '<article class="origin-detail-card health-panel"><header><h3>◆ 生态健康指数</h3><span>5 项机械评分</span></header>'
+      + '<div class="origin-health-layout"><div class="origin-health-ring" id="originHealthRing"><strong id="originHealthScore">—</strong><small>/ 100</small></div>'
+      + '<div class="origin-health-parts" id="originHealthParts"></div></div>'
+      + '<p class="origin-method-note">评分只根据流动性、链上活跃、质押、供应稳定与安全透明五项公开指标计算，不构成投资建议。</p></article>'
+      + '<article class="origin-detail-card whale-panel"><header><h3>🐋 鲸鱼动态</h3><span>大额成交追踪</span></header><div class="origin-whale-list" id="originWhaleList"></div></article>'
+      + '<article class="origin-detail-card risk-panel"><header><h3>⚠ 链上风险雷达</h3><span class="risk-level" id="originRiskLevel">检测中</span></header>'
+      + '<div class="origin-risk-items" id="originRiskItems"></div></article></div>';
+  }
+
+  function originTimeAgo(timestamp) {
+    const elapsed = Math.max(0, Date.now() - Number(timestamp || 0));
+    if (elapsed < 60000) return "刚刚";
+    if (elapsed < 3600000) return Math.floor(elapsed / 60000) + " 分钟前";
+    if (elapsed < 86400000) return Math.floor(elapsed / 3600000) + " 小时前";
+    return Math.floor(elapsed / 86400000) + " 天前";
+  }
+
+  function setOriginChange(selector, value) {
+    const element = $(selector);
+    const number = Number(value);
+    if (!element) return;
+    element.textContent = formatChange(number);
+    element.className = Number.isFinite(number) ? (number >= 0 ? "up" : "down") : "";
+  }
+
+  function renderOriginEvents(events) {
+    const list = $("#originEventList");
+    if (!list) return;
+    const rows = Array.isArray(events) ? events.slice(0, 12) : [];
+    list.innerHTML = rows.length ? rows.map(event => {
+      const direction = event.dir === "buy" ? "buy" : "sell";
+      const side = direction === "buy" ? "买入" : "卖出";
+      const tx = String(event.tx || "");
+      return '<a class="origin-event-row" href="' + escapeHtml(explorerTx(tx, "polygon"))
+        + '" target="_blank" rel="noopener noreferrer"><span class="origin-side ' + direction + '">' + side + '</span>'
+        + '<b>' + escapeHtml(formatNumber(event.lgns)) + ' LGNS</b><strong>' + escapeHtml(formatUSD(event.dai)) + '</strong>'
+        + '<small>' + escapeHtml(shortAddress(event.who || tx)) + '</small><time>' + escapeHtml(originTimeAgo(event.ts)) + "</time></a>";
+    }).join("") : '<div class="origin-empty">暂无最新成交事件</div>';
+  }
+
+  function renderOriginWhales(whales) {
+    const list = $("#originWhaleList");
+    if (!list) return;
+    const rows = Array.isArray(whales) ? whales.slice(0, 8) : [];
+    list.innerHTML = rows.length ? rows.map(event => {
+      const direction = event.dir === "buy" ? "buy" : "sell";
+      return '<a class="origin-whale-row" href="' + escapeHtml(explorerTx(String(event.tx || ""), "polygon"))
+        + '" target="_blank" rel="noopener noreferrer"><span>🐋</span><span class="origin-side ' + direction + '">'
+        + (direction === "buy" ? "买入" : "卖出") + '</span><b>' + escapeHtml(formatNumber(event.lgns))
+        + ' LGNS</b><strong>' + escapeHtml(formatUSD(event.dai)) + '</strong><time>' + escapeHtml(originTimeAgo(event.ts))
+        + "</time></a>";
+    }).join("") : '<div class="origin-empty">当前没有检测到大额成交</div>';
+  }
+
+  function renderOriginHealth(health) {
+    const score = Number(health?.score);
+    const safeScore = Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : 0;
+    setText("#originHealthScore", Number.isFinite(score) ? String(safeScore) : "—");
+    const ring = $("#originHealthRing");
+    if (ring) ring.style.setProperty("--score", safeScore);
+    const labels = {
+      liq: "流动性",
+      act: "链上活跃",
+      stk: "质押参与",
+      sup: "供应稳定",
+      sec: "安全透明"
+    };
+    const parts = Array.isArray(health?.parts) ? health.parts : [];
+    const root = $("#originHealthParts");
+    if (!root) return;
+    root.innerHTML = parts.length ? parts.map(part => {
+      const got = Number(part.got);
+      const max = Number(part.max);
+      const percent = Number.isFinite(got) && Number.isFinite(max) && max > 0 ? Math.max(0, Math.min(100, got / max * 100)) : 0;
+      return '<div class="origin-health-part"><div><span>' + escapeHtml(labels[part.k] || part.k)
+        + '</span><b>' + escapeHtml(Number.isFinite(got) ? got.toFixed(1).replace(".0", "") : "—")
+        + '<small>/' + escapeHtml(Number.isFinite(max) ? String(max) : "—") + '</small></b></div>'
+        + '<div class="origin-health-track"><i style="width:' + percent.toFixed(1) + '%"></i></div>'
+        + '<p>' + escapeHtml(part.basis || "等待指标依据") + "</p></div>";
+    }).join("") : '<div class="origin-empty">健康评分明细暂不可用</div>';
+  }
+
+  function renderOriginRisk(risk) {
+    setText("#originRiskLevel", risk?.level || "未知");
+    const level = $("#originRiskLevel");
+    if (level) level.className = "risk-level " + (risk?.level === "正常" ? "normal" : "warn");
+    const root = $("#originRiskItems");
+    if (!root) return;
+    const items = Array.isArray(risk?.items) ? risk.items : [];
+    root.innerHTML = items.length ? items.map(item =>
+      '<div class="origin-risk-item ' + (item.t === "warn" || item.t === "risk" ? "warn" : "info")
+      + '"><span>◆</span><p>' + escapeHtml(item.m || "风险提示") + "</p></div>"
+    ).join("") : '<div class="origin-risk-item info"><span>◆</span><p>当前没有新增风险提示</p></div>';
+  }
+
+  function renderOriginRadar(data) {
+    if (!$("#originRadarDashboard")) return;
+    const market = data.market || {};
+    const anubis = data.anubis || {};
+    const eco = data.eco || {};
+    const treasury = data.treasury || {};
+    const wallets = data.wallets || {};
+    const network = data.net || {};
+    const setNetwork = (selector, online, label) => {
+      const element = $(selector);
+      if (!element) return;
+      element.textContent = "● " + label + (online === false ? " 异常" : " 正常");
+      element.className = "network-pill " + (online === false ? "offline" : "online");
+    };
+    setText("#originRadarUpdated", "数据更新：" + new Date(data.ts || Date.now()).toLocaleString("zh-CN", {
+      year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false
+    }));
+    setNetwork("#originAnubisStatus", network.anubis, "Anubis");
+    setNetwork("#originPolygonStatus", network.polygon, "Polygon");
+    setNetwork("#originRadarStatus", network.official, "公开接口");
+    setText("#originLgnsPrice", Number.isFinite(Number(market.price)) ? Number(market.price).toFixed(4) : "—");
+    setOriginChange("#originLgnsChange", market.change24h);
+    setText("#originMarketCap", formatUSD(market.mcap));
+    setText("#originSupply", formatNumber(market.supply) + " LGNS");
+    const priceLine = chartPath(market.spark);
+    $("#originPriceLine")?.setAttribute("d", priceLine);
+    $("#originPriceArea")?.setAttribute("d", priceLine + " L600,120 L0,120 Z");
+    setText("#originHeight", formatNumber(anubis.height));
+    setText("#originBlockTime", Number.isFinite(Number(anubis.blockTime)) ? Number(anubis.blockTime).toFixed(1).replace(".0", "") + " 秒" : "—");
+    setText("#originTps", Number.isFinite(Number(anubis.tps)) ? Number(anubis.tps).toFixed(2) : "—");
+    setText("#originGas", Number.isFinite(Number(anubis.gasGwei)) ? Number(anubis.gasGwei).toFixed(2) + " gwei" : "—");
+    setText("#originAddresses", formatNumber(anubis.addresses || wallets.anbAddresses));
+    setText("#originStakeRate", Number.isFinite(Number(eco.stakeRate)) ? Number(eco.stakeRate).toFixed(1) + "%" : "—");
+    setText("#originStaked", formatNumber(eco.staked) + " LGNS");
+    setText("#originTvl", formatUSD(eco.tvl));
+    setText("#originLp", formatUSD(eco.lp));
+    setText("#originWalletAddresses", formatNumber(wallets.anbAddresses || anubis.addresses));
+    setText("#originTxToday", formatNumber(wallets.txToday || anubis.txToday));
+    setText("#originTxTotal", formatNumber(wallets.txTotal || anubis.txTotal));
+    setText("#originUtil", Number.isFinite(Number(anubis.util)) ? Number(anubis.util).toFixed(2) + "%" : "—");
+    setText("#originTreasuryValue", formatUSD(treasury.marketValue));
+    setOriginChange("#originTreasuryChange", treasury.mvChange24h);
+    setText("#originRiskFree", formatUSD(treasury.riskFreeValue));
+    setText("#originBurn", formatNumber(treasury.burn) + " LGNS");
+    const treasuryLine = chartPath(treasury.spark);
+    $("#originTreasuryLine")?.setAttribute("d", treasuryLine);
+    $("#originTreasuryArea")?.setAttribute("d", treasuryLine + " L600,120 L0,120 Z");
+    renderOriginEvents(data.events);
+    renderOriginWhales(data.whales);
+    renderOriginHealth(data.health);
+    renderOriginRisk(data.risk);
   }
 
   async function loadRadarData() {
@@ -1053,6 +1536,7 @@
       const data = await response.json();
       if (!data || !data.ok) throw new Error("无有效数据");
       radarData = data;
+      renderOriginRadar(data);
       const market = data.market || {};
       const anubis = data.anubis || {};
       const eco = data.eco || {};
@@ -1116,6 +1600,11 @@
       if (globalStatus) {
         globalStatus.textContent = "离线";
         globalStatus.className = "global-change down";
+      }
+      const originStatus = $("#originRadarStatus");
+      if (originStatus) {
+        originStatus.textContent = "● 数据接口暂不可用";
+        originStatus.className = "network-pill offline";
       }
     }
   }
@@ -1329,6 +1818,8 @@
     initMotion();
     initEmbers();
     initTools();
+    ensureOriginRadarStructure();
+    initOkxMarketUi();
     const courseCount = COURSES.length || 36;
     const videoCount = VIDEOS.length || 61;
     if ($("#heroVideoCount")) $("#heroVideoCount").textContent = videoCount;
@@ -1351,11 +1842,14 @@
     }
     loadRadarData();
     loadOkxMarketData();
+    loadOkxCandles();
     setInterval(loadRadarData, REFRESH_INTERVAL_MS);
     setInterval(loadOkxMarketData, OKX_REFRESH_INTERVAL_MS);
+    setInterval(loadOkxCandles, OKX_CANDLE_REFRESH_INTERVAL_MS);
     $("#refreshData")?.addEventListener("click", () => {
       loadRadarData();
       loadOkxMarketData();
+      loadOkxCandles();
     });
 
     const input = $(".ai-input");

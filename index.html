@@ -8,7 +8,7 @@
 <title>链上服务站｜Origin 生态入口</title>
 <meta name="description" content="Origin 生态课程、视频、链上数据和实用工具的独立入口。">
 <link rel="icon" type="image/png" href="服务站11-1-assets/favicon.png">
-<link rel="stylesheet" href="服务站11-1-assets/site.css">
+<link rel="stylesheet" href="服务站11-1-assets/site.css?v=20260729-radar2">
 </head>
 <body data-page="home">
 <div class="origin-bg" aria-hidden="true"><img src="服务站11-1-assets/bg.png" alt=""></div>
@@ -178,6 +178,9 @@
       </div>
       <a class="section-more" href="radar.html#evidence">查看完整证据库 →</a>
     </div>
+    <div class="origin-radar-dashboard" id="originRadarDashboard">
+      <div class="radar-loading">正在加载 Origin 链上实时指标、事件与风险数据…</div>
+    </div>
     <div class="dashboard-grid">
       <div class="dash-card">
         <div class="dash-header">
@@ -242,17 +245,64 @@
       <div class="market-panel-head">
         <div>
           <span class="market-kicker">OKX SPOT MARKET</span>
-          <h3>欧易主流币实时行情</h3>
-          <p>只读取欧易公开现货行情，不需要 API Key，不连接账户，不提供交易操作。</p>
+          <h3>欧易主流币实时走势与 K 线</h3>
+          <p>选择主流币查看实时价格、分时走势与不同周期 K 线；只读取公开行情，不连接账户。</p>
         </div>
         <div class="market-status" id="okxMarketStatus" aria-live="polite">正在连接欧易公开行情</div>
       </div>
-      <div class="okx-market-grid" id="okxMarketGrid">
-        <div class="market-loading">正在读取 BTC、ETH、SOL、OKB 等实时数据…</div>
+      <div class="okx-terminal">
+        <aside class="market-watchlist" aria-label="主流币列表">
+          <div class="market-watch-head"><span>主流币</span><small>现货 / USDT</small></div>
+          <div class="okx-market-grid" id="okxMarketGrid">
+            <div class="market-loading">正在读取主流币行情…</div>
+          </div>
+        </aside>
+        <div class="market-chart-card">
+          <div class="market-chart-head">
+            <div class="market-active-pair">
+              <div class="market-active-icon" id="okxActiveIcon">BT</div>
+              <div><b id="okxActiveSymbol">BTC / USDT</b><span id="okxActiveName">比特币 · 欧易现货</span></div>
+            </div>
+            <div class="market-active-quote">
+              <strong id="okxActivePrice">—</strong>
+              <span id="okxActiveChange">等待行情</span>
+            </div>
+            <div class="market-active-stats">
+              <div><span>24h 高</span><b id="okxActiveHigh">—</b></div>
+              <div><span>24h 低</span><b id="okxActiveLow">—</b></div>
+              <div><span>24h 成交额</span><b id="okxActiveVolume">—</b></div>
+            </div>
+          </div>
+          <div class="market-chart-toolbar">
+            <div class="chart-control-group" id="okxChartModes" aria-label="图表类型">
+              <button class="chart-control" type="button" data-chart-mode="line">分时走势</button>
+              <button class="chart-control active" type="button" data-chart-mode="candles">K 线图</button>
+            </div>
+            <div class="chart-control-group" id="okxChartIntervals" aria-label="K线周期">
+              <button class="chart-control" type="button" data-chart-bar="1m">1分</button>
+              <button class="chart-control" type="button" data-chart-bar="5m">5分</button>
+              <button class="chart-control active" type="button" data-chart-bar="15m">15分</button>
+              <button class="chart-control" type="button" data-chart-bar="1H">1时</button>
+              <button class="chart-control" type="button" data-chart-bar="4H">4时</button>
+              <button class="chart-control" type="button" data-chart-bar="1D">日线</button>
+            </div>
+          </div>
+          <div class="market-chart-readout" id="okxChartReadout">
+            <span>开 <b id="okxReadOpen">—</b></span>
+            <span>高 <b id="okxReadHigh">—</b></span>
+            <span>低 <b id="okxReadLow">—</b></span>
+            <span>收 <b id="okxReadClose">—</b></span>
+            <span>量 <b id="okxReadVolume">—</b></span>
+          </div>
+          <div class="okx-chart-wrap" id="okxChartWrap">
+            <canvas id="okxMarketChart" aria-label="欧易主流币实时走势图与K线图"></canvas>
+            <div class="chart-empty" id="okxChartEmpty">正在加载 K 线数据…</div>
+          </div>
+        </div>
       </div>
       <div class="market-foot">
-        <span id="okxMarketUpdated">等待首次刷新</span>
-        <a href="https://www.okx.com/docs-v5/en/#rest-api-market-data-get-tickers" target="_blank" rel="noopener noreferrer">欧易公开行情说明 ↗</a>
+        <span id="okxMarketUpdated">价格每 10 秒刷新 · K 线每 15 秒刷新</span>
+        <a href="https://www.okx.com/docs-v5/en/#rest-api-market-data-get-candlesticks" target="_blank" rel="noopener noreferrer">欧易 K 线接口说明 ↗</a>
       </div>
     </div>
   </section>
@@ -332,6 +382,6 @@
 <script src="服务站11-1-assets/videos.js"></script>
 <script src="服务站11-1-assets/contracts.js"></script>
 <script src="服务站11-1-assets/events.js"></script>
-<script src="服务站11-1-assets/site.js"></script>
+<script src="服务站11-1-assets/site.js?v=20260729-radar2"></script>
 </body>
 </html>
