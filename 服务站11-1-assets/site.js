@@ -80,10 +80,61 @@
         poster: remapMediaUrl(video.poster)
       }))
     : [];
+  const COURSE_SERIES = Object.freeze([
+    {
+      key: "1", level: 1, name: "Web3 入门", en: "Web3 Basics", icon: "i-sprout",
+      desc: "先建立区块链、比特币、以太坊、钱包与 Gas 的基础认知。",
+      topics: ["区块链", "钱包", "Gas"]
+    },
+    {
+      key: "2", level: 2, name: "钱包与安全", en: "Wallets & Security", icon: "i-lock",
+      desc: "学习创建与备份钱包，识别授权、签名、钓鱼和常见骗局。",
+      topics: ["助记词", "授权", "防诈骗"]
+    },
+    {
+      key: "3", level: 3, name: "DeFi 基础", en: "DeFi Basics", icon: "i-droplets",
+      desc: "理解智能合约、DEX、流动性、质押、债券与跨链机制。",
+      topics: ["智能合约", "DEX", "质押"]
+    },
+    {
+      key: "4", level: 4, name: "Origin 生态", en: "Origin Ecosystem", icon: "i-landmark",
+      desc: "系统认识 LGNS、Anubis、质押、国库与生态运行逻辑。",
+      topics: ["LGNS", "Anubis", "国库"]
+    },
+    {
+      key: "5", level: 5, name: "链上研究", en: "On-chain Research", icon: "i-microscope",
+      desc: "学会看合约、查浏览器、分析钱包并制作链上研究报告。",
+      topics: ["合约核验", "钱包分析", "研究报告"]
+    }
+  ]);
+  const VIDEO_SERIES_INFO = Object.freeze({
+    "lgns-basic": {
+      desc: "从欧易钱包、仪表板到质押、涡轮和日常操作，完整认识 LGNS。",
+      topics: ["钱包", "质押", "涡轮"]
+    },
+    howto: {
+      desc: "覆盖注册、买卖、跨链、债券、NFT 与常用功能的逐步实操。",
+      topics: ["注册", "跨链", "交易"]
+    },
+    origin: {
+      desc: "深入理解 Origin 与 Anubis 生态的核心机制和进阶操作。",
+      topics: ["Origin", "Anubis", "生态"]
+    },
+    defi: {
+      desc: "用完整课程建立 DeFi 机制、风险和链上验证的系统认知。",
+      topics: ["DeFi", "机制", "风险"]
+    }
+  });
+  const VIDEO_SERIES = Object.freeze(
+    (Array.isArray(window.VIDEO_CATS) ? window.VIDEO_CATS : [])
+      .filter(series => VIDEOS.some(video => video.cat === series.key))
+      .map(series => ({ ...series, ...(VIDEO_SERIES_INFO[series.key] || {}) }))
+  );
   const STORE_KEY = "web3origin_service_station_v2";
   let courseLevel = "all";
+  let faqLevel = "all";
   let videoCategory = "all";
-  let videoExpanded = false;
+  let activeCourse = null;
   let activeVideo = null;
   let lastVideoSave = 0;
   let radarData = null;
@@ -206,12 +257,15 @@
     setTimeout(() => body.querySelector("input,select,button")?.focus(), 20);
   }
 
-  function closeToolModal() {
+  function closeToolModal(options = {}) {
     const modal = $("#toolModal");
+    const wasCourse = activeTool === "course";
     modal?.classList.remove("open");
     modal?.setAttribute("aria-hidden", "true");
     document.body.style.overflow = "";
     activeTool = null;
+    activeCourse = null;
+    if (wasCourse && options.updateUrl !== false) removeItemRoute("course");
     if (lastFocusedElement?.isConnected) lastFocusedElement.focus();
   }
 
@@ -562,13 +616,15 @@
   function openCourseRoute(course) {
     if (!course) return;
     if (document.body.dataset.page === "academy") openCourse(course);
-    else window.location.href = "academy.html?course=" + encodeURIComponent(course.slug);
+    else window.location.href = "academy.html?series=" + encodeURIComponent(course.level)
+      + "&course=" + encodeURIComponent(course.slug);
   }
 
   function openVideoRoute(video) {
     if (!video) return;
     if (document.body.dataset.page === "videos") openVideo(video);
-    else window.location.href = "videos.html?video=" + encodeURIComponent(video.slug);
+    else window.location.href = "videos.html?series=" + encodeURIComponent(video.cat)
+      + "&video=" + encodeURIComponent(video.slug);
   }
 
   function initTools() {
@@ -605,8 +661,116 @@
     })[level] || "课程";
   }
 
-  function openCourse(course) {
+  function syncSeriesRoute(series, hash) {
+    try {
+      const url = new URL(window.location.href);
+      if (series && series !== "all") url.searchParams.set("series", series);
+      else url.searchParams.delete("series");
+      url.searchParams.delete("course");
+      url.searchParams.delete("video");
+      if (hash) url.hash = hash;
+      window.history.pushState({ series: series || "all" }, "", url.href);
+    } catch (error) {}
+  }
+
+  function syncItemRoute(param, value, series, hash) {
+    try {
+      const url = new URL(window.location.href);
+      if (series) url.searchParams.set("series", series);
+      url.searchParams.set(param, value);
+      url.searchParams.delete(param === "course" ? "video" : "course");
+      if (hash) url.hash = hash;
+      window.history.pushState({ series, [param]: value }, "", url.href);
+    } catch (error) {}
+  }
+
+  function removeItemRoute(param) {
+    try {
+      const url = new URL(window.location.href);
+      if (!url.searchParams.has(param)) return;
+      url.searchParams.delete(param);
+      window.history.replaceState({ series: url.searchParams.get("series") || "all" }, "", url.href);
+    } catch (error) {}
+  }
+
+  function courseSeriesMeta(level) {
+    return COURSE_SERIES.find(series => series.key === String(level));
+  }
+
+  function renderCourseSeries() {
+    const seriesGrid = $("#courseSeriesGrid");
+    if (!seriesGrid || !COURSES.length) return;
+    const done = readStore().courseDone || {};
+    seriesGrid.innerHTML = COURSE_SERIES.map((series, index) => {
+      const items = COURSES.filter(course => String(course.level) === series.key);
+      const completed = items.filter(course => done[course.slug]).length;
+      const minutes = items.reduce((total, course) => total + Number(course.dur || 0), 0);
+      const percent = items.length ? completed / items.length * 100 : 0;
+      return '<button class="series-card course-series-card" type="button" data-course-series-entry="' + escapeHtml(series.key)
+        + '" aria-label="进入' + escapeHtml(series.name) + '系列">'
+        + '<span class="series-card-number">SERIES ' + String(index + 1).padStart(2, "0") + '</span>'
+        + '<span class="series-card-icon"><span class="theme-icon ' + escapeHtml(series.icon) + '" aria-hidden="true"></span></span>'
+        + '<span class="series-card-copy"><span class="series-card-en">' + escapeHtml(series.en) + '</span>'
+        + '<strong class="series-card-title">Lv.' + escapeHtml(series.level) + ' · ' + escapeHtml(series.name) + '</strong>'
+        + '<span class="series-card-desc">' + escapeHtml(series.desc) + '</span>'
+        + '<span class="series-topic-row">' + series.topics.map(topic => '<span>' + escapeHtml(topic) + '</span>').join("") + '</span></span>'
+        + '<span class="series-card-progress"><span style="width:' + Math.min(100, percent) + '%"></span></span>'
+        + '<span class="series-card-foot"><span>' + items.length + ' 节 · 约 ' + minutes + ' 分钟'
+        + (completed ? ' · 已完成 ' + completed : '') + '</span><b>进入系列 →</b></span></button>';
+    }).join("");
+    $$("[data-course-series-entry]", seriesGrid).forEach(button => {
+      button.addEventListener("click", () => selectCourseSeries(button.dataset.courseSeriesEntry));
+    });
+    if ($("#courseCatalogSummary")) {
+      $("#courseCatalogSummary").textContent = COURSE_SERIES.length + " 个系列 · " + COURSES.length + " 节课程";
+    }
+  }
+
+  function selectCourseSeries(level, options = {}) {
+    const nextLevel = COURSE_SERIES.some(series => series.key === String(level)) ? String(level) : "all";
+    courseLevel = nextLevel;
+    if ($("#courseSearch")) $("#courseSearch").value = "";
+    renderCourses();
+    if (options.updateUrl !== false) syncSeriesRoute(nextLevel, "academy-catalog");
+    if (options.scroll !== false) {
+      requestAnimationFrame(() => {
+        $(nextLevel === "all" ? "#courseSeriesGrid" : "#courseSeriesPanel")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  }
+
+  function renderCourseSeriesHeader(query, matches) {
+    const header = $("#courseSeriesHeader");
+    if (!header) return;
+    const series = courseSeriesMeta(courseLevel);
+    const isGlobalSearch = !series;
+    const totalItems = series
+      ? COURSES.filter(course => String(course.level) === series.key)
+      : COURSES;
+    const metricItems = query ? matches : totalItems;
+    const minutes = metricItems.reduce((total, course) => total + Number(course.dur || 0), 0);
+    const title = isGlobalSearch ? "全部课程搜索" : "Lv." + series.level + " · " + series.name;
+    const subtitle = isGlobalSearch
+      ? (query ? "正在全站查找“" + query + "”" : "全部课程")
+      : series.en;
+    const description = isGlobalSearch
+      ? "搜索结果会标明所属系列，打开后仍可记录学习进度。"
+      : series.desc;
+    const icon = isGlobalSearch ? "i-search-check" : series.icon;
+    header.innerHTML = '<button class="series-back" type="button" data-course-series-back>← 返回全部系列</button>'
+      + '<div class="series-detail-main"><span class="series-detail-icon"><span class="theme-icon ' + escapeHtml(icon)
+      + '" aria-hidden="true"></span></span><div><span class="series-detail-kicker">' + escapeHtml(subtitle)
+      + '</span><h2>' + escapeHtml(title) + '</h2><p>' + escapeHtml(description) + '</p></div></div>'
+      + '<div class="series-detail-stats"><span><b>' + matches.length + '</b> 节' + (query ? "匹配" : "课程")
+      + '</span><span><b>' + minutes + '</b> 分钟</span></div>';
+    $("[data-course-series-back]", header)?.addEventListener("click", () => selectCourseSeries("all"));
+  }
+
+  function openCourse(course, options = {}) {
     if (!course) return;
+    activeCourse = course;
+    if (options.updateUrl !== false) syncItemRoute("course", course.slug, String(course.level), "academy-catalog");
     const courseTools = Array.isArray(course.tools) ? course.tools : [];
     const relatedVideos = VIDEOS.filter(video => {
       const videoTools = Array.isArray(video.tools) ? video.tools : [];
@@ -635,7 +799,7 @@
         updateStore("courseDone", course.slug, !current);
         updateCourseProgress();
         renderCourses();
-        openCourse(course);
+        openCourse(course, { updateUrl: false });
       });
       $("#readerBackCatalog", body)?.addEventListener("click", () => {
         closeToolModal();
@@ -653,19 +817,34 @@
 
   function renderCourses() {
     const grid = $("#courseGrid");
-    if (!grid) return;
+    const seriesGrid = $("#courseSeriesGrid");
+    const seriesPanel = $("#courseSeriesPanel");
+    if (!grid || !seriesGrid || !seriesPanel) return;
     if (!COURSES.length) {
-      grid.innerHTML = '<div class="empty-state">课程数据暂时无法载入，请确认“服务站11-1-assets”资料目录与网页放在同一文件夹。</div>';
+      seriesGrid.innerHTML = '<div class="empty-state">课程数据暂时无法载入，请确认“服务站11-1-assets”资料目录与网页放在同一文件夹。</div>';
+      seriesPanel.hidden = true;
       return;
     }
 
     const query = ($("#courseSearch")?.value || "").trim().toLowerCase();
     const done = readStore().courseDone || {};
+    const showSeriesOverview = courseLevel === "all" && !query;
+    seriesGrid.hidden = !showSeriesOverview;
+    seriesPanel.hidden = showSeriesOverview;
+    if (showSeriesOverview) {
+      grid.innerHTML = "";
+      renderCourseSeries();
+      updateCourseProgress();
+      return;
+    }
+
     const matches = COURSES.filter(course => {
       const levelMatch = courseLevel === "all" || String(course.level) === courseLevel;
-      const text = [course.title, course.title_en, course.plain, course.objective, course.slug].join(" ").toLowerCase();
+      const text = [course.title, course.title_en, course.plain, course.objective, course.example, course.slug]
+        .join(" ").toLowerCase();
       return levelMatch && (!query || text.includes(query));
     });
+    renderCourseSeriesHeader(query, matches);
 
     grid.innerHTML = matches.length ? matches.map(course => {
       const isDone = Boolean(done[course.slug]);
@@ -708,22 +887,95 @@
     if (fill) fill.style.width = (total ? count / total * 100 : 0) + "%";
   }
 
+  function getFaqItems() {
+    return COURSES.flatMap(course => (course.faq || []).map(item => ({
+      q: item.q,
+      a: item.a,
+      courseTitle: course.title,
+      slug: course.slug,
+      level: String(course.level)
+    })));
+  }
+
+  function renderFaqSeries(allFaqs) {
+    const seriesGrid = $("#faqSeriesGrid");
+    if (!seriesGrid) return;
+    seriesGrid.innerHTML = COURSE_SERIES.map(series => {
+      const count = allFaqs.filter(item => item.level === series.key).length;
+      return '<button class="faq-series-card" type="button" data-faq-series-entry="' + escapeHtml(series.key)
+        + '" aria-label="查看' + escapeHtml(series.name) + '常见问题">'
+        + '<span class="faq-series-icon"><span class="theme-icon ' + escapeHtml(series.icon) + '" aria-hidden="true"></span></span>'
+        + '<span><small>Lv.' + escapeHtml(series.level) + ' · ' + escapeHtml(series.en) + '</small><strong>'
+        + escapeHtml(series.name) + '</strong><em>' + count + ' 个问题</em></span><b>→</b></button>';
+    }).join("");
+    $$("[data-faq-series-entry]", seriesGrid).forEach(button => {
+      button.addEventListener("click", () => selectFaqSeries(button.dataset.faqSeriesEntry));
+    });
+  }
+
+  function selectFaqSeries(level, options = {}) {
+    faqLevel = COURSE_SERIES.some(series => series.key === String(level)) ? String(level) : "all";
+    if ($("#faqSearch")) $("#faqSearch").value = "";
+    renderFaqs();
+    if (options.scroll !== false) {
+      requestAnimationFrame(() => {
+        $(faqLevel === "all" ? "#faqSeriesGrid" : "#faqSeriesPanel")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  }
+
+  function renderFaqSeriesHeader(query, matches) {
+    const header = $("#faqSeriesHeader");
+    if (!header) return;
+    const series = courseSeriesMeta(faqLevel);
+    const title = series ? series.name + " · 常见问题" : "全部问题搜索";
+    const description = series
+      ? series.desc
+      : (query ? "正在全部课程问答中查找“" + query + "”" : "全部课程问答");
+    header.innerHTML = '<button class="series-back" type="button" data-faq-series-back>← 返回问题系列</button>'
+      + '<div><span>' + (series ? "Lv." + escapeHtml(series.level) + " · " + escapeHtml(series.en) : "FAQ SEARCH")
+      + '</span><h3>' + escapeHtml(title) + '</h3><p>' + escapeHtml(description) + '</p></div>'
+      + '<b>' + matches.length + ' 个问题</b>';
+    $("[data-faq-series-back]", header)?.addEventListener("click", () => selectFaqSeries("all"));
+  }
+
   function renderFaqs() {
     const list = $("#faqList");
-    if (!list) return;
-    const allFaqs = COURSES.flatMap(course => (course.faq || []).map(item => ({
-      q: item.q, a: item.a, courseTitle: course.title, slug: course.slug
-    })));
+    const seriesGrid = $("#faqSeriesGrid");
+    const seriesPanel = $("#faqSeriesPanel");
+    if (!list || !seriesGrid || !seriesPanel) return;
+    const allFaqs = getFaqItems();
     const query = ($("#faqSearch")?.value || "").trim().toLowerCase();
-    const matches = allFaqs.filter(item => !query
-      || [item.q, item.a, item.courseTitle].join(" ").toLowerCase().includes(query));
+    const showSeriesOverview = faqLevel === "all" && !query;
+    seriesGrid.hidden = !showSeriesOverview;
+    seriesPanel.hidden = showSeriesOverview;
+    if ($("#faqCount")) {
+      $("#faqCount").textContent = showSeriesOverview
+        ? COURSE_SERIES.length + " 个系列 · " + allFaqs.length + " 个问题"
+        : "正在查看 " + allFaqs.length + " 个完整问答";
+    }
+    if (showSeriesOverview) {
+      list.innerHTML = "";
+      renderFaqSeries(allFaqs);
+      return;
+    }
+    const matches = allFaqs.filter(item => {
+      const levelMatch = faqLevel === "all" || item.level === faqLevel;
+      const textMatch = !query || [item.q, item.a, item.courseTitle].join(" ").toLowerCase().includes(query);
+      return levelMatch && textMatch;
+    });
+    renderFaqSeriesHeader(query, matches);
     if ($("#faqCount")) $("#faqCount").textContent = "共 " + matches.length + " 个问题";
-    list.innerHTML = matches.length ? matches.map((item, index) =>
-      '<article class="faq-item"><button class="faq-question" type="button" aria-expanded="false">'
-      + escapeHtml(item.q) + ' <span style="float:right;color:var(--green-primary)">＋</span></button>'
-      + '<div class="faq-answer"><p>' + escapeHtml(item.a) + '</p><button class="local-evidence-link" type="button" data-faq-course="'
-      + escapeHtml(item.slug) + '">阅读相关课程：' + escapeHtml(item.courseTitle) + " →</button></div></article>"
-    ).join("") : '<div class="empty-state">没有找到匹配问题，换一个关键词试试。</div>';
+    list.innerHTML = matches.length ? matches.map(item => {
+      const series = courseSeriesMeta(item.level);
+      return '<article class="faq-item"><span class="faq-series-label">Lv.' + escapeHtml(item.level) + " · "
+        + escapeHtml(series?.name || levelName(item.level)) + '</span>'
+        + '<button class="faq-question" type="button" aria-expanded="false">'
+        + escapeHtml(item.q) + ' <span style="float:right;color:var(--green-primary)">＋</span></button>'
+        + '<div class="faq-answer"><p>' + escapeHtml(item.a) + '</p><button class="local-evidence-link" type="button" data-faq-course="'
+        + escapeHtml(item.slug) + '">阅读相关课程：' + escapeHtml(item.courseTitle) + " →</button></div></article>";
+    }).join("") : '<div class="empty-state">没有找到匹配问题，换一个关键词试试。</div>';
     $$(".faq-question", list).forEach(button => {
       button.addEventListener("click", () => {
         const item = button.closest(".faq-item");
@@ -765,13 +1017,98 @@
     })[category] || "i-play";
   }
 
+  function formatVideoDuration(seconds) {
+    const minutes = Math.round(Number(seconds || 0) / 60);
+    if (minutes <= 0) return "0 分钟";
+    if (minutes < 60) return "约 " + minutes + " 分钟";
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+    return "约 " + hours + " 小时" + (rest ? " " + rest + " 分钟" : "");
+  }
+
+  function videoSeriesMeta(category) {
+    return VIDEO_SERIES.find(series => series.key === category);
+  }
+
+  function renderVideoSeries() {
+    const seriesGrid = $("#videoSeriesGrid");
+    if (!seriesGrid || !VIDEOS.length) return;
+    const store = readStore();
+    const progress = store.videoProgress || {};
+    const favoriteCount = VIDEOS.filter(video => (store.videoFav || {})[video.slug]).length;
+    seriesGrid.innerHTML = VIDEO_SERIES.map((series, index) => {
+      const items = VIDEOS.filter(video => video.cat === series.key);
+      const completed = items.filter(video => Number(progress[video.slug] || 0) >= 90).length;
+      const duration = formatVideoDuration(items.reduce((total, video) => total + Number(video.durSec || 0), 0));
+      const percent = items.length ? completed / items.length * 100 : 0;
+      return '<button class="series-card video-series-card" type="button" data-video-series-entry="' + escapeHtml(series.key)
+        + '" aria-label="进入' + escapeHtml(series.name) + '视频系列">'
+        + '<span class="series-card-number">VIDEO SERIES ' + String(index + 1).padStart(2, "0") + '</span>'
+        + '<span class="series-card-icon"><span class="theme-icon ' + escapeHtml(videoCategoryIcon(series.key))
+        + '" aria-hidden="true"></span></span>'
+        + '<span class="series-card-copy"><span class="series-card-en">' + escapeHtml(series.en || "") + '</span>'
+        + '<strong class="series-card-title">' + escapeHtml(series.name) + '</strong>'
+        + '<span class="series-card-desc">' + escapeHtml(series.desc || "按主题整理的视频课程。") + '</span>'
+        + '<span class="series-topic-row">' + (series.topics || []).map(topic => '<span>' + escapeHtml(topic) + '</span>').join("") + '</span></span>'
+        + '<span class="series-card-progress"><span style="width:' + Math.min(100, percent) + '%"></span></span>'
+        + '<span class="series-card-foot"><span>' + items.length + ' 部 · ' + escapeHtml(duration)
+        + (completed ? ' · 已看完 ' + completed : '') + '</span><b>进入系列 →</b></span></button>';
+    }).join("");
+    $$("[data-video-series-entry]", seriesGrid).forEach(button => {
+      button.addEventListener("click", () => selectVideoSeries(button.dataset.videoSeriesEntry));
+    });
+    if ($("#videoFavoriteCount")) $("#videoFavoriteCount").textContent = String(favoriteCount);
+    if ($("#videoCatalogSummary")) {
+      $("#videoCatalogSummary").textContent = VIDEOS.length + " 部视频 · " + VIDEO_SERIES.length + " 个系列";
+    }
+  }
+
+  function selectVideoSeries(category, options = {}) {
+    const valid = category === "fav" || VIDEO_SERIES.some(series => series.key === category);
+    videoCategory = valid ? category : "all";
+    if ($("#videoSearch")) $("#videoSearch").value = "";
+    renderVideos();
+    if (options.updateUrl !== false) syncSeriesRoute(videoCategory, "videos");
+    if (options.scroll !== false) {
+      requestAnimationFrame(() => {
+        $(videoCategory === "all" ? "#videoSeriesGrid" : "#videoSeriesPanel")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  }
+
+  function renderVideoSeriesHeader(query, matches) {
+    const header = $("#videoSeriesHeader");
+    if (!header) return;
+    const series = videoSeriesMeta(videoCategory);
+    const isFavorites = videoCategory === "fav";
+    const isGlobalSearch = videoCategory === "all";
+    const title = isFavorites ? "我的收藏" : isGlobalSearch ? "全部视频搜索" : series.name;
+    const subtitle = isFavorites
+      ? "SAVED VIDEOS"
+      : isGlobalSearch ? (query ? "正在全站查找“" + query + "”" : "全部视频") : (series.en || "");
+    const description = isFavorites
+      ? "你收藏的视频集中显示在这里，收藏记录只保存在当前浏览器。"
+      : isGlobalSearch ? "搜索结果会标明所属系列，点击后仍在本站直接播放。" : series.desc;
+    const icon = isFavorites ? "i-sparkles" : isGlobalSearch ? "i-search-check" : videoCategoryIcon(series.key);
+    const duration = formatVideoDuration(matches.reduce((total, video) => total + Number(video.durSec || 0), 0));
+    header.innerHTML = '<button class="series-back" type="button" data-video-series-back>← 返回全部系列</button>'
+      + '<div class="series-detail-main"><span class="series-detail-icon"><span class="theme-icon ' + escapeHtml(icon)
+      + '" aria-hidden="true"></span></span><div><span class="series-detail-kicker">' + escapeHtml(subtitle)
+      + '</span><h2>' + escapeHtml(title) + '</h2><p>' + escapeHtml(description) + '</p></div></div>'
+      + '<div class="series-detail-stats"><span><b>' + matches.length + '</b> 部视频</span><span><b>'
+      + escapeHtml(duration.replace(/^约\s*/, "")) + '</b></span></div>';
+    $("[data-video-series-back]", header)?.addEventListener("click", () => selectVideoSeries("all"));
+  }
+
   function renderVideos() {
     const grid = $("#videoLibrary");
-    const more = $("#videoMore");
-    if (!grid) return;
+    const seriesGrid = $("#videoSeriesGrid");
+    const seriesPanel = $("#videoSeriesPanel");
+    if (!grid || !seriesGrid || !seriesPanel) return;
     if (!VIDEOS.length) {
-      grid.innerHTML = '<div class="empty-state">视频目录暂时无法载入，请确认“服务站11-1-assets”资料目录与网页放在同一文件夹。</div>';
-      if (more) more.hidden = true;
+      seriesGrid.innerHTML = '<div class="empty-state">视频目录暂时无法载入，请确认“服务站11-1-assets”资料目录与网页放在同一文件夹。</div>';
+      seriesPanel.hidden = true;
       return;
     }
 
@@ -779,15 +1116,29 @@
     const store = readStore();
     const favorites = store.videoFav || {};
     const progress = store.videoProgress || {};
+    const favoriteCount = VIDEOS.filter(video => favorites[video.slug]).length;
+    if ($("#videoFavoriteCount")) $("#videoFavoriteCount").textContent = String(favoriteCount);
+    if ($("#videoCatalogSummary")) {
+      $("#videoCatalogSummary").textContent = VIDEOS.length + " 部视频 · " + VIDEO_SERIES.length + " 个系列";
+    }
+    const showSeriesOverview = videoCategory === "all" && !query;
+    seriesGrid.hidden = !showSeriesOverview;
+    seriesPanel.hidden = showSeriesOverview;
+    if (showSeriesOverview) {
+      grid.innerHTML = "";
+      renderVideoSeries();
+      return;
+    }
+
     let matches = VIDEOS.filter(video => {
       const catMatch = videoCategory === "all" || videoCategory === "fav"
         ? true : video.cat === videoCategory;
       const favoriteMatch = videoCategory !== "fav" || favorites[video.slug];
-      const text = [video.title, video.title_en, video.desc, video.slug].join(" ").toLowerCase();
+      const text = [video.title, video.title_en, video.desc, video.objective, video.summary, video.keywords, video.slug]
+        .join(" ").toLowerCase();
       return catMatch && favoriteMatch && (!query || text.includes(query));
     });
-    const totalMatches = matches.length;
-    if (!videoExpanded && !query && videoCategory === "all") matches = matches.slice(0, 9);
+    renderVideoSeriesHeader(query, matches);
 
     grid.innerHTML = matches.length ? matches.map(video => {
       const watched = Number(progress[video.slug] || 0);
@@ -806,7 +1157,9 @@
         + "</div></button>"
         + '<button class="video-fav' + (favorites[video.slug] ? " on" : "") + '" type="button" aria-label="收藏视频" title="收藏">' + (favorites[video.slug] ? "★" : "☆") + "</button>"
         + "</article>";
-    }).join("") : '<div class="empty-state">没有找到匹配视频。</div>';
+    }).join("") : '<div class="empty-state">'
+      + (videoCategory === "fav" ? "还没有收藏视频。进入任意系列，点击视频卡片右上角的星标即可收藏。" : "没有找到匹配视频。")
+      + "</div>";
 
     $$(".video-open", grid).forEach(button => {
       button.addEventListener("click", () => {
@@ -823,15 +1176,11 @@
         renderVideos();
       });
     });
-
-    if (more) {
-      more.hidden = totalMatches <= 9 || query || videoCategory !== "all";
-      more.textContent = videoExpanded ? "收起视频" : "显示全部 " + totalMatches + " 部视频";
-    }
   }
 
-  function openVideo(video) {
+  function openVideo(video, options = {}) {
     activeVideo = video;
+    if (options.updateUrl !== false) syncItemRoute("video", video.slug, video.cat, "videos");
     const modal = $("#videoModal");
     const player = $("#videoPlayer");
     const title = $("#videoModalTitle");
@@ -855,7 +1204,7 @@
     player.play().catch(() => {});
   }
 
-  function closeVideo() {
+  function closeVideo(options = {}) {
     const modal = $("#videoModal");
     const player = $("#videoPlayer");
     if (!modal || !player) return;
@@ -868,6 +1217,7 @@
     modal.setAttribute("aria-hidden", "true");
     document.body.style.overflow = "";
     activeVideo = null;
+    if (options.updateUrl !== false) removeItemRoute("video");
     renderVideos();
     const freshTrigger = $$(".video-card").find(card => card.dataset.slug === closingSlug)?.querySelector(".video-open");
     if (freshTrigger) freshTrigger.focus();
@@ -1944,33 +2294,14 @@
   function initFilters() {
     $("#courseSearch")?.addEventListener("input", renderCourses);
     $("#faqSearch")?.addEventListener("input", renderFaqs);
-    $$("#courseFilters .filter-btn").forEach(button => {
-      button.addEventListener("click", () => {
-        courseLevel = button.dataset.level;
-        $$("#courseFilters .filter-btn").forEach(item => item.classList.toggle("active", item === button));
-        renderCourses();
+    $$("[data-course-series]").forEach(link => {
+      link.addEventListener("click", event => {
+        event.preventDefault();
+        selectCourseSeries(link.dataset.courseSeries);
       });
     });
     $("#videoSearch")?.addEventListener("input", renderVideos);
-    $$("#videoFilters .filter-btn").forEach(button => {
-      button.addEventListener("click", () => {
-        videoCategory = button.dataset.cat;
-        $$("#videoFilters .filter-btn").forEach(item => item.classList.toggle("active", item === button));
-        renderVideos();
-      });
-    });
-    $("#videoMore")?.addEventListener("click", () => {
-      videoExpanded = !videoExpanded;
-      renderVideos();
-    });
-    $("#expandAllVideos")?.addEventListener("click", () => {
-      videoExpanded = true;
-      videoCategory = "all";
-      if ($("#videoSearch")) $("#videoSearch").value = "";
-      $$("#videoFilters .filter-btn").forEach(item => item.classList.toggle("active", item.dataset.cat === "all"));
-      renderVideos();
-      $("#videoLibrary")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
+    $("#openVideoFavorites")?.addEventListener("click", () => selectVideoSeries("fav"));
   }
 
   function initEmbers() {
@@ -2089,25 +2420,67 @@
     ensureOriginRadarStructure();
     initOkxMarketUi();
     const courseCount = COURSES.length || 36;
-    const videoCount = VIDEOS.length || 61;
+    const videoCount = VIDEOS.length || 36;
     if ($("#heroVideoCount")) $("#heroVideoCount").textContent = videoCount;
     if ($("#quickVideoCount")) $("#quickVideoCount").textContent = videoCount;
     if ($("#evidenceVideoCount")) $("#evidenceVideoCount").textContent = videoCount;
     if ($("#aiDatasetCount")) $("#aiDatasetCount").textContent = courseCount + " 节课程与 " + videoCount + " 部视频";
+    const params = new URLSearchParams(window.location.search);
+    const requestedSeries = params.get("series");
+    const requestedCourse = params.get("course");
+    const requestedVideo = params.get("video");
+    if (document.body.dataset.page === "academy" && COURSE_SERIES.some(series => series.key === requestedSeries)) {
+      courseLevel = requestedSeries;
+    }
+    if (document.body.dataset.page === "videos"
+      && (requestedSeries === "fav" || VIDEO_SERIES.some(series => series.key === requestedSeries))) {
+      videoCategory = requestedSeries;
+    }
+    const course = requestedCourse && document.body.dataset.page === "academy"
+      ? COURSES.find(item => item.slug === requestedCourse) : null;
+    const video = requestedVideo && document.body.dataset.page === "videos"
+      ? VIDEOS.find(item => item.slug === requestedVideo) : null;
+    if (course) courseLevel = String(course.level);
+    if (video) videoCategory = video.cat;
     renderCourses();
     renderVideos();
     renderFaqs();
-    const params = new URLSearchParams(window.location.search);
-    const requestedCourse = params.get("course");
-    const requestedVideo = params.get("video");
     if (requestedCourse && document.body.dataset.page === "academy") {
-      const course = COURSES.find(item => item.slug === requestedCourse);
-      if (course) setTimeout(() => openCourse(course), 0);
+      if (course) setTimeout(() => openCourse(course, { updateUrl: false }), 0);
     }
     if (requestedVideo && document.body.dataset.page === "videos") {
-      const video = VIDEOS.find(item => item.slug === requestedVideo);
-      if (video) setTimeout(() => openVideo(video), 0);
+      if (video) setTimeout(() => openVideo(video, { updateUrl: false }), 0);
     }
+    window.addEventListener("popstate", () => {
+      const routeParams = new URLSearchParams(window.location.search);
+      const series = routeParams.get("series");
+      if (document.body.dataset.page === "academy") {
+        const routeCourse = COURSES.find(item => item.slug === routeParams.get("course"));
+        courseLevel = routeCourse
+          ? String(routeCourse.level)
+          : COURSE_SERIES.some(item => item.key === series) ? series : "all";
+        if ($("#courseSearch")) $("#courseSearch").value = "";
+        renderCourses();
+        if (routeCourse && (activeTool !== "course" || activeCourse?.slug !== routeCourse.slug)) {
+          openCourse(routeCourse, { updateUrl: false });
+        } else if (!routeCourse && activeTool === "course") {
+          closeToolModal({ updateUrl: false });
+        }
+      }
+      if (document.body.dataset.page === "videos") {
+        const routeVideo = VIDEOS.find(item => item.slug === routeParams.get("video"));
+        videoCategory = routeVideo
+          ? routeVideo.cat
+          : series === "fav" || VIDEO_SERIES.some(item => item.key === series) ? series : "all";
+        if ($("#videoSearch")) $("#videoSearch").value = "";
+        renderVideos();
+        if (routeVideo && activeVideo?.slug !== routeVideo.slug) {
+          openVideo(routeVideo, { updateUrl: false });
+        } else if (!routeVideo && activeVideo) {
+          closeVideo({ updateUrl: false });
+        }
+      }
+    });
     loadRadarData();
     initializeOkxMarketData();
     setInterval(loadRadarData, REFRESH_INTERVAL_MS);

@@ -8,7 +8,7 @@
 <title>学习学院｜链上服务站</title>
 <meta name="description" content="36 节 Web3、钱包安全、DeFi、Origin 生态和链上研究课程。">
 <link rel="icon" type="image/png" href="服务站11-1-assets/favicon.png">
-  <link rel="stylesheet" href="服务站11-1-assets/site.css?v=20260729-themeicons1">
+  <link rel="stylesheet" href="服务站11-1-assets/site.css?v=20260730-series1">
 </head>
 <body data-page="academy">
 <div class="origin-bg" aria-hidden="true"><img src="服务站11-1-assets/bg.png" alt=""></div>
@@ -93,31 +93,31 @@
       <a href="#academy-catalog" class="section-more">查看完整课程 →</a>
     </div>
     <div class="path-track">
-      <a class="path-step" href="#academy-catalog" data-course="what-is-blockchain">
+      <a class="path-step" href="#academy-catalog" data-course-series="1">
         <div class="path-circle">1</div>
         <div class="path-name">Web3 入门</div>
         <div class="path-en">Web3 Basics</div>
         <div class="path-tag"><span class="theme-icon i-sprout" aria-hidden="true"></span>7节课</div>
       </a>
-      <a class="path-step" href="#academy-catalog" data-course="how-to-create-wallet">
+      <a class="path-step" href="#academy-catalog" data-course-series="2">
         <div class="path-circle l2">2</div>
         <div class="path-name">钱包与安全</div>
         <div class="path-en">Wallets & Security</div>
         <div class="path-tag"><span class="theme-icon i-lock" aria-hidden="true"></span>7节课</div>
       </a>
-      <a class="path-step" href="#academy-catalog" data-course="what-is-smart-contract">
+      <a class="path-step" href="#academy-catalog" data-course-series="3">
         <div class="path-circle l3">3</div>
         <div class="path-name">DeFi 基础</div>
         <div class="path-en">DeFi Basics</div>
         <div class="path-tag"><span class="theme-icon i-droplets" aria-hidden="true"></span>8节课</div>
       </a>
-      <a class="path-step" href="#academy-catalog" data-course="origin-ecosystem">
+      <a class="path-step" href="#academy-catalog" data-course-series="4">
         <div class="path-circle l4">4</div>
         <div class="path-name">Origin 生态</div>
         <div class="path-en">ORIGIN Ecosystem</div>
         <div class="path-tag"><span class="theme-icon i-landmark" aria-hidden="true"></span>8节课</div>
       </a>
-      <a class="path-step" href="#academy-catalog" data-course="how-to-read-contracts">
+      <a class="path-step" href="#academy-catalog" data-course-series="5">
         <div class="path-circle l5">5</div>
         <div class="path-name">链上研究者</div>
         <div class="path-en">On-chain Researcher</div>
@@ -126,33 +126,36 @@
     </div>
   </div>
 
-<!-- 完整课程目录 -->
+<!-- 分系列课程目录 -->
   <div class="section fade-up" id="academy-catalog">
     <div class="section-header">
       <div class="section-title">
-        36 节免费课程
-        <span class="tag">搜索 · 筛选 · 本地记录进度</span>
+        5 个课程系列
+        <span class="tag">36 节课程 · 点击系列进入</span>
       </div>
-      <span class="section-more">点击课程阅读</span>
+      <span class="section-more" id="courseCatalogSummary">完整保留 36 节课程</span>
     </div>
-    <div class="catalog-controls">
-      <input class="catalog-search" id="courseSearch" type="search" placeholder="搜索课程：钱包 / 合约 / LGNS / 质押…" aria-label="搜索课程">
-      <div class="filter-row" id="courseFilters" aria-label="课程等级筛选">
-        <button class="filter-btn active" data-level="all">全部</button>
-        <button class="filter-btn" data-level="1">Lv.1 入门</button>
-        <button class="filter-btn" data-level="2">Lv.2 安全</button>
-        <button class="filter-btn" data-level="3">Lv.3 DeFi</button>
-        <button class="filter-btn" data-level="4">Lv.4 Origin</button>
-        <button class="filter-btn" data-level="5">Lv.5 研究</button>
-      </div>
+    <div class="series-intro">
+      <span class="theme-icon i-evidence" aria-hidden="true"></span>
+      <div><b>按学习阶段进入</b><p>先看系列概览，再进入阅读单节课程；也可以搜索全部 36 节内容。</p></div>
+    </div>
+    <div class="catalog-controls series-catalog-controls">
+      <input class="catalog-search" id="courseSearch" type="search" placeholder="搜索全部课程：钱包 / 合约 / LGNS / 质押…" aria-label="搜索全部课程">
+      <span class="catalog-search-hint"><span class="theme-icon i-search-check" aria-hidden="true"></span>支持标题与正文关键词</span>
     </div>
     <div class="course-summary">
       <span id="courseProgressText">已完成 0 / 36</span>
       <div class="course-progress-track"><div class="course-progress-fill" id="courseProgressFill"></div></div>
     </div>
-    <div class="course-grid" id="courseGrid">
-      <div class="empty-state">正在读取 Web3Origin 学院课程…</div>
+    <div class="series-grid course-series-grid" id="courseSeriesGrid" aria-label="阅读课程系列">
+      <div class="empty-state">正在整理课程系列…</div>
     </div>
+    <section class="series-panel" id="courseSeriesPanel" aria-label="课程系列内容" hidden>
+      <div class="series-detail-head" id="courseSeriesHeader"></div>
+      <div class="course-grid" id="courseGrid">
+        <div class="empty-state">正在读取学院课程…</div>
+      </div>
+    </section>
   </div>
 
 <!-- 常见问题 -->
@@ -160,16 +163,23 @@
     <div class="section-header">
       <div class="section-title">
         封印解答
-        <span class="tag">课程问题全部收录</span>
+        <span class="tag">94 个问题 · 按系列查找</span>
       </div>
-      <span class="section-more" id="faqCount">正在整理问题</span>
+      <span class="section-more" id="faqCount">5 个系列 · 完整保留</span>
     </div>
-    <div class="catalog-controls">
-      <input class="catalog-search" id="faqSearch" type="search" placeholder="搜索问题：区块链 / 钱包 / LGNS / Anubis…" aria-label="搜索常见问题">
+    <div class="catalog-controls series-catalog-controls">
+      <input class="catalog-search" id="faqSearch" type="search" placeholder="搜索全部问题：区块链 / 钱包 / LGNS / Anubis…" aria-label="搜索全部常见问题">
+      <span class="catalog-search-hint"><span class="theme-icon i-search-check" aria-hidden="true"></span>按问题、答案与课程搜索</span>
     </div>
-    <div class="faq-list" id="faqList">
-      <div class="empty-state">正在读取课程问答…</div>
+    <div class="faq-series-grid" id="faqSeriesGrid" aria-label="常见问题系列">
+      <div class="empty-state">正在整理问题系列…</div>
     </div>
+    <section class="faq-series-panel" id="faqSeriesPanel" hidden>
+      <div class="faq-series-detail-head" id="faqSeriesHeader"></div>
+      <div class="faq-list" id="faqList">
+        <div class="empty-state">正在读取课程问答…</div>
+      </div>
+    </section>
   </div>
 </main>
 <div class="modal" id="videoModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="videoModalTitle">
@@ -219,6 +229,6 @@
 <script src="服务站11-1-assets/videos.js"></script>
 <script src="服务站11-1-assets/contracts.js"></script>
 <script src="服务站11-1-assets/events.js"></script>
-<script src="服务站11-1-assets/site.js?v=20260729-themeicons1"></script>
+<script src="服务站11-1-assets/site.js?v=20260730-series1"></script>
 </body>
 </html>

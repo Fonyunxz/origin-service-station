@@ -6,9 +6,9 @@
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://media.web3origin.com https://web3origin.com; media-src 'self' https://media.web3origin.com; connect-src 'self' https://count.web3origin.com https://api.gopluslabs.io https://www.okx.com; font-src 'self' data:; form-action 'self'; upgrade-insecure-requests">
 <title>视频学院｜链上服务站</title>
-<meta name="description" content="61 部 Origin 生态与 Web3 实操视频，在页面内直接播放。">
+<meta name="description" content="36 部 Origin 生态与 Web3 实操视频，分为 4 个系列并在页面内直接播放。">
 <link rel="icon" type="image/png" href="服务站11-1-assets/favicon.png">
-  <link rel="stylesheet" href="服务站11-1-assets/site.css?v=20260729-themeicons1">
+  <link rel="stylesheet" href="服务站11-1-assets/site.css?v=20260730-series1">
 </head>
 <body data-page="videos">
 <div class="origin-bg" aria-hidden="true"><img src="服务站11-1-assets/bg.png" alt=""></div>
@@ -88,24 +88,27 @@
     <div class="section-header">
       <div class="section-title">
         视频学院
-        <span class="tag">用视频看懂 Web3 与 Origin</span>
+        <span class="tag">4 大系列 · 逐类学习</span>
       </div>
-      <button class="section-more local-action" id="expandAllVideos" type="button">查看全部视频 →</button>
+      <span class="section-more" id="videoCatalogSummary">36 部视频 · 4 个系列</span>
     </div>
-    <div class="catalog-controls">
-      <input class="catalog-search" id="videoSearch" type="search" placeholder="搜索视频：钱包 / 跨链 / 质押 / Anubis…" aria-label="搜索视频">
-      <div class="filter-row" id="videoFilters" aria-label="视频分类筛选">
-        <button class="filter-btn active" data-cat="all">全部</button>
-        <button class="filter-btn" data-cat="lgns-basic">LGNS 基础</button>
-        <button class="filter-btn" data-cat="howto">上手实操</button>
-        <button class="filter-btn" data-cat="origin">Origin 生态</button>
-        <button class="filter-btn" data-cat="fav">★ 收藏</button>
+    <div class="series-intro">
+      <span class="theme-icon i-play" aria-hidden="true"></span>
+      <div><b>先选系列，再看课程</b><p>全部内容完整保留。可按系列进入，也可以直接搜索全部视频。</p></div>
+    </div>
+    <div class="catalog-controls series-catalog-controls">
+      <input class="catalog-search" id="videoSearch" type="search" placeholder="搜索全部视频：钱包 / 跨链 / 质押 / Anubis…" aria-label="搜索全部视频">
+      <button class="series-utility-button" id="openVideoFavorites" type="button"><span aria-hidden="true">★</span> 我的收藏 <b id="videoFavoriteCount">0</b></button>
+    </div>
+    <div class="series-grid video-series-grid" id="videoSeriesGrid" aria-label="视频课程系列">
+      <div class="empty-state">正在整理视频系列…</div>
+    </div>
+    <section class="series-panel" id="videoSeriesPanel" aria-label="视频系列内容" hidden>
+      <div class="series-detail-head" id="videoSeriesHeader"></div>
+      <div class="video-scroll video-library" id="videoLibrary">
+        <div class="empty-state">正在读取视频清单…</div>
       </div>
-    </div>
-    <div class="video-scroll video-library" id="videoLibrary">
-      <div class="empty-state">正在读取 Web3Origin 视频清单…</div>
-    </div>
-    <button class="more-button" id="videoMore" type="button">显示全部视频</button>
+    </section>
     <p class="live-source-note">视频点击后直接播放；公开媒体文件采用流式加载，不会跳转到其他网站。播放进度与收藏只保存在当前浏览器。</p>
   </div>
 </main>
@@ -156,6 +159,6 @@
 <script src="服务站11-1-assets/videos.js"></script>
 <script src="服务站11-1-assets/contracts.js"></script>
 <script src="服务站11-1-assets/events.js"></script>
-<script src="服务站11-1-assets/site.js?v=20260729-themeicons1"></script>
+<script src="服务站11-1-assets/site.js?v=20260730-series1"></script>
 </body>
 </html>
