@@ -1695,11 +1695,28 @@
     return date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
   }
 
+  function getOkxChartLayout(width) {
+    const compact = width < 420;
+    return {
+      pad: {
+        left: compact ? 8 : 12,
+        right: compact ? 56 : 76,
+        top: 14,
+        bottom: 28
+      },
+      fontSize: compact ? 9 : 10,
+      timeRatios: width < 300
+        ? [0, .5, 1]
+        : width < 380 ? [0, 1 / 3, 2 / 3, 1] : [0, .25, .5, .75, 1]
+    };
+  }
+
   function drawOkxChart() {
     const canvas = $("#okxMarketChart");
     const wrap = $("#okxChartWrap");
     if (!canvas || !wrap || !okxCandles.length) return;
-    const width = Math.max(320, Math.round(wrap.clientWidth));
+    const width = Math.round(wrap.clientWidth);
+    if (width < 120) return;
     const height = Math.max(300, Math.round(wrap.clientHeight));
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const pixelWidth = Math.round(width * dpr);
@@ -1715,7 +1732,8 @@
     context.clearRect(0, 0, width, height);
 
     const candles = okxCandles;
-    const pad = { left: 12, right: 76, top: 14, bottom: 28 };
+    const layout = getOkxChartLayout(width);
+    const pad = layout.pad;
     const plotWidth = width - pad.left - pad.right;
     const priceBottom = Math.round(height * .72);
     const volumeTop = priceBottom + 20;
@@ -1731,7 +1749,7 @@
     const priceY = value => pad.top + (maximum - value) / range * (priceBottom - pad.top);
     const volumeMax = Math.max(...candles.map(item => item.volume), 1);
 
-    context.font = "10px system-ui, sans-serif";
+    context.font = layout.fontSize + "px system-ui, sans-serif";
     context.textAlign = "left";
     context.textBaseline = "middle";
     for (let index = 0; index <= 4; index += 1) {
@@ -1811,7 +1829,7 @@
     context.stroke();
     context.setLineDash([]);
 
-    [0, .25, .5, .75, 1].forEach(ratio => {
+    layout.timeRatios.forEach(ratio => {
       const index = Math.min(candles.length - 1, Math.round((candles.length - 1) * ratio));
       const x = pad.left + (index + .5) * slot;
       context.fillStyle = "rgba(155,129,95,.75)";
@@ -1927,18 +1945,22 @@
         loadOkxCandles();
       });
     });
-    canvas.addEventListener("pointermove", event => {
+    const updateChartHover = event => {
       if (!okxCandles.length) return;
       const rect = canvas.getBoundingClientRect();
-      const plotLeft = 12;
-      const plotWidth = Math.max(1, rect.width - 88);
+      const pad = getOkxChartLayout(rect.width).pad;
+      const plotLeft = pad.left;
+      const plotWidth = Math.max(1, rect.width - pad.left - pad.right);
       const x = Math.max(0, Math.min(plotWidth - 1, event.clientX - rect.left - plotLeft));
       const nextIndex = Math.max(0, Math.min(okxCandles.length - 1, Math.floor(x / plotWidth * okxCandles.length)));
       if (nextIndex === okxChartHoverIndex) return;
       okxChartHoverIndex = nextIndex;
       scheduleChartDraw();
-    }, { passive: true });
-    canvas.addEventListener("pointerleave", () => {
+    };
+    canvas.addEventListener("pointermove", updateChartHover, { passive: true });
+    canvas.addEventListener("pointerdown", updateChartHover, { passive: true });
+    canvas.addEventListener("pointerleave", event => {
+      if (event.pointerType === "touch") return;
       okxChartHoverIndex = null;
       scheduleChartDraw();
     }, { passive: true });
@@ -2303,6 +2325,28 @@
     });
   }
 
+  function initGlobalBarScrollHint() {
+    const shell = $(".global-bar");
+    const scroller = $(".global-bar-inner");
+    if (!shell || !scroller) return;
+    const syncOverflow = () => {
+      shell.classList.toggle(
+        "has-horizontal-overflow",
+        scroller.scrollWidth > scroller.clientWidth + 2
+      );
+    };
+    scroller.addEventListener("scroll", () => {
+      if (scroller.scrollLeft > 6) shell.classList.add("scroll-hint-seen");
+    }, { passive: true });
+    if ("ResizeObserver" in window) {
+      const observer = new ResizeObserver(syncOverflow);
+      observer.observe(scroller);
+    } else {
+      window.addEventListener("resize", syncOverflow, { passive: true });
+    }
+    requestAnimationFrame(syncOverflow);
+  }
+
   function initScrollUi() {
     const backToTop = $("#backToTop");
     const navLinks = $$('.nav-link[href^="#"]');
@@ -2365,7 +2409,9 @@
 
   function initEmbers() {
     const canvas = $("#originEmbers");
-    if (!canvas || !canvas.getContext || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!canvas || !canvas.getContext
+      || window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      || window.matchMedia("(max-width: 520px)").matches) return;
     const context = canvas.getContext("2d");
     let width = 0;
     let height = 0;
@@ -2501,6 +2547,7 @@
       ogUrl.content = canonicalUrl;
     }
     initNavigation();
+    initGlobalBarScrollHint();
     initScrollUi();
     initFilters();
     initMotion();

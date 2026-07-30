@@ -692,7 +692,10 @@ body {
     linear-gradient(rgba(214,168,75,.018), rgba(214,168,75,0)),
     repeating-linear-gradient(90deg, transparent 0, transparent 99px, rgba(214,168,75,.025) 100px);
 }
-#okxMarketChart { display: block; width: 100%; height: 100%; cursor: crosshair; }
+#okxMarketChart {
+  display: block; width: 100%; max-width: 100%; height: 100%;
+  cursor: crosshair; touch-action: pan-y;
+}
 .chart-empty {
   position: absolute; inset: 0; display: grid; place-items: center; padding: 24px;
   color: var(--text-muted); background: rgba(7,6,5,.88); text-align: center; font-size: 11px;
@@ -1601,18 +1604,41 @@ body {
   .okx-chart-wrap { height: 390px; flex: none; }
 }
 @media (max-width: 768px) {
-  .global-bar { padding: 8px 16px; }
-  .navbar { padding: 0 16px; }
+  .global-bar {
+    padding: 8px max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left));
+  }
+  .global-bar.has-horizontal-overflow::after {
+    content: "← 滑动查看更多";
+    position: absolute; z-index: 2; top: 50%; right: 8px; transform: translateY(-50%);
+    padding: 4px 7px 4px 18px; border-radius: 20px; pointer-events: none;
+    color: var(--green-secondary); background: linear-gradient(90deg, transparent, rgba(5,3,3,.96) 28%);
+    font-size: 9px; transition: opacity .2s;
+  }
+  .global-bar.scroll-hint-seen::after { opacity: 0; }
+  .global-bar-inner {
+    padding-right: 28px; overscroll-behavior-inline: contain;
+    scroll-snap-type: x proximity; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .global-bar-inner::-webkit-scrollbar { display: none; }
+  .global-item { flex: 0 0 auto; scroll-snap-align: start; }
+  .navbar {
+    position: sticky; top: 0; z-index: 100;
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-left: max(16px, env(safe-area-inset-left));
+  }
   .nav-mobile-toggle { display: inline-flex; }
   .nav-links {
     display: none; position: absolute; top: 64px; left: 16px; right: 16px;
+    max-height: calc(100dvh - 76px); overflow-y: auto; overscroll-behavior: contain;
     padding: 10px; border: 1px solid var(--border-green); border-radius: 12px;
     background: rgba(8,12,8,.98); box-shadow: 0 20px 50px rgba(0,0,0,.5);
   }
   .nav-links.open { display: grid; grid-template-columns: 1fr; }
   .nav-link { padding: 11px 12px; }
   .nav-right .btn-ghost { display: none; }
-  .main-container { padding: 20px 16px; }
+  .main-container {
+    padding: 20px max(16px, env(safe-area-inset-right)) 20px max(16px, env(safe-area-inset-left));
+  }
   .hero-title { font-size: 28px; }
   .path-step { flex: 0 0 124px; min-width: 124px; }
   .quick-access { grid-template-columns: 1fr; }
@@ -1646,9 +1672,17 @@ body {
   .faq-series-detail-head { grid-template-columns: 1fr; padding: 15px; }
   .faq-series-detail-head > b { justify-self: start; }
   .course-grid, .video-library { grid-template-columns: 1fr; }
-  .modal { padding: 8px; }
-  .modal-dialog { max-height: calc(100dvh - 16px); border-radius: 12px; }
+  .modal {
+    padding:
+      max(8px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
+  }
+  .modal-dialog { max-height: 100%; border-radius: 12px; }
   .modal-head { position: sticky; top: 0; z-index: 3; background: rgba(18,5,5,.98); }
+  .modal-head h3 { min-width: 0; line-height: 1.35; overflow-wrap: anywhere; }
+  .modal-close { flex: 0 0 44px; }
   .reader-actions { flex-direction: column; }
   .reader-actions .tool-action { width: 100%; }
   .tool-form, .tool-form.three { grid-template-columns: 1fr; }
@@ -1675,7 +1709,75 @@ body {
   .okx-chart-wrap { height: 330px; min-height: 330px; }
   .market-foot { align-items: flex-start; flex-direction: column; }
 }
+@media (max-width: 768px), (pointer: coarse) {
+  .nav-mobile-toggle,
+  .nav-cta,
+  .modal-close,
+  .video-fav,
+  .course-check,
+  .ai-send,
+  .chart-control,
+  .filter-btn,
+  .faq-question,
+  .reader-video,
+  .ai-result-links a,
+  .ai-result-links button,
+  .local-evidence-link,
+  .origin-event-row,
+  .origin-whale-row,
+  .footer-social a,
+  .tool-copy,
+  .tool-action,
+  .tool-tab,
+  .series-utility-button {
+    min-width: 44px; min-height: 44px;
+  }
+  .nav-link,
+  .series-back,
+  a.section-more,
+  button.section-more {
+    display: inline-flex; align-items: center; min-height: 44px;
+  }
+  .catalog-search,
+  .tool-input,
+  .tool-select,
+  .ai-input {
+    min-height: 44px; font-size: 16px;
+  }
+  .chart-control { padding: 9px 11px; }
+  .chart-control-group {
+    overscroll-behavior-inline: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .chart-control-group::-webkit-scrollbar { display: none; }
+}
 @media (max-width: 520px) {
+  .nav-cta { display: none; }
+  .hero-stats {
+    display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 18px 22px;
+  }
+  .ai-card { padding: 18px; border-radius: 16px; }
+  .ai-input { min-width: 0; padding-right: 10px; padding-left: 12px; }
+  .ai-send { flex: 0 0 48px; justify-content: center; padding: 12px; }
+  .section-header {
+    align-items: flex-start; flex-direction: column; gap: 8px; margin-bottom: 16px;
+  }
+  .section-title {
+    min-width: 0; flex-wrap: wrap; row-gap: 6px; line-height: 1.35;
+  }
+  .section-title .tag {
+    max-width: 100%; line-height: 1.45; white-space: normal;
+  }
+  .section-more { align-self: flex-start; }
+  .navbar { backdrop-filter: blur(10px); }
+  .origin-bg img { animation: none; }
+  .origin-embers { display: none; }
+  .hero,
+  .ai-card,
+  .dash-card,
+  .qa-card,
+  .tool-card,
+  .course-card,
+  .video-card { backdrop-filter: none; }
   .origin-radar-title em { display: block; margin: 6px 0 0; }
   .origin-kpi-grid { grid-template-columns: 1fr; }
   .origin-detail-card { padding: 12px; }
@@ -1691,4 +1793,14 @@ body {
   .market-active-quote { text-align: left; }
   .market-active-stats { grid-column: 1; }
   .market-chart-readout { gap: 9px; }
+}
+@media (max-width: 360px) {
+  .nav-left .logo-sub { display: none; }
+  .nav-left { gap: 9px; }
+  .logo-icon { width: 38px; height: 38px; }
+  .hero-title { font-size: 26px; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .modal video { max-height: calc(100dvh - 118px); }
+  .modal-meta { padding-top: 10px; padding-bottom: 12px; }
 }
