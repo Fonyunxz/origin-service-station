@@ -14,6 +14,13 @@
     const element = $(selector);
     if (element) element.textContent = value;
   };
+  const debounce = (callback, delay = 140) => {
+    let timeout = 0;
+    return (...args) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => callback(...args), delay);
+    };
+  };
   const CONFIG = window.SITE_CONFIG || {};
   const normalizeOrigin = value => {
     const text = String(value || "").trim();
@@ -157,6 +164,9 @@
   let okxCandleUpdatedAt = 0;
   let okxTickerBlockedUntil = 0;
   let okxCandleBlockedUntil = 0;
+  let okxSnapshotWriteTimer = 0;
+  let okxSnapshotDirty = false;
+  let radarRequestInFlight = false;
 
   function escapeHtml(value) {
     return String(value == null ? "" : value).replace(/[&<>"']/g, char => ({
@@ -327,7 +337,7 @@
         }).join("") + "</div>";
       bindCopyButtons(output);
     };
-    input.addEventListener("input", render);
+    input.addEventListener("input", debounce(render));
     $("#contractClear", body)?.addEventListener("click", () => { input.value = ""; render(); input.focus(); });
     render();
   }
@@ -462,7 +472,7 @@
         }).join("") + "</div>";
     };
     $("#evidenceChain", body).addEventListener("change", render);
-    $("#evidenceSearch", body).addEventListener("input", render);
+    $("#evidenceSearch", body).addEventListener("input", debounce(render));
     $("#evidenceReset", body)?.addEventListener("click", () => {
       $("#evidenceChain", body).value = "all";
       $("#evidenceSearch", body).value = "";
@@ -1145,7 +1155,7 @@
       const poster = video.poster || "https://web3origin.com/assets/og-image.png";
       return '<article class="video-card" data-slug="' + escapeHtml(video.slug) + '">'
         + '<button class="video-open" type="button" aria-label="播放：' + escapeHtml(video.title) + '">'
-        + '<div class="video-thumb"><img src="' + escapeHtml(poster) + '" alt="' + escapeHtml(video.title) + ' 视频封面" loading="lazy">'
+        + '<div class="video-thumb"><img src="' + escapeHtml(poster) + '" alt="' + escapeHtml(video.title) + ' 视频封面" loading="lazy" decoding="async" fetchpriority="low">'
         + '<div class="video-play-btn">▶</div><div class="video-duration">' + escapeHtml(video.durText || "") + "</div>"
         + '<div class="vid-prog-track" aria-hidden="true"><div class="vid-prog" style="width:' + Math.min(100, watched) + '%"></div></div></div>'
         + '<div class="video-card-body"><div class="video-cat"><span class="theme-icon '
@@ -1227,8 +1237,12 @@
   function saveVideoProgress() {
     const player = $("#videoPlayer");
     if (!activeVideo || !player || !Number.isFinite(player.duration) || !player.duration) return;
-    updateStore("videoPosition", activeVideo.slug, Math.floor(player.currentTime));
-    updateStore("videoProgress", activeVideo.slug, Math.min(100, Math.round(player.currentTime / player.duration * 100)));
+    const data = readStore();
+    data.videoPosition = data.videoPosition || {};
+    data.videoProgress = data.videoProgress || {};
+    data.videoPosition[activeVideo.slug] = Math.floor(player.currentTime);
+    data.videoProgress[activeVideo.slug] = Math.min(100, Math.round(player.currentTime / player.duration * 100));
+    writeStore(data);
   }
 
   function renderAssistant(query) {
@@ -1359,6 +1373,8 @@
     if (!Array.isArray(rows)) return [];
     return rows.map(row => {
       if (Array.isArray(row)) {
+        const isCompact = row.length === 8;
+        const confirmed = isCompact ? row[7] : row[8];
         return {
           ts: Number(row[0]),
           open: Number(row[1]),
@@ -1366,8 +1382,8 @@
           low: Number(row[3]),
           close: Number(row[4]),
           volume: Number(row[5]),
-          quoteVolume: Number(row[7]),
-          confirmed: row[8] === "1"
+          quoteVolume: Number(isCompact ? row[6] : row[7]),
+          confirmed: confirmed === true || confirmed === 1 || confirmed === "1"
         };
       }
       return {
@@ -1384,6 +1400,19 @@
       .sort((a, b) => a.ts - b.ts);
   }
 
+  function compactOkxCandle(row) {
+    return [
+      Number(row.ts),
+      Number(row.open),
+      Number(row.high),
+      Number(row.low),
+      Number(row.close),
+      Number(row.volume),
+      Number(row.quoteVolume),
+      row.confirmed ? 1 : 0
+    ];
+  }
+
   function readOkxLocalSnapshot() {
     try {
       const snapshot = JSON.parse(localStorage.getItem(OKX_LOCAL_CACHE_KEY));
@@ -1393,9 +1422,21 @@
     }
   }
 
-  function writeOkxLocalSnapshot() {
+  function writeOkxLocalSnapshot(options = {}) {
     if (!okxLocalSnapshot) return;
-    try { localStorage.setItem(OKX_LOCAL_CACHE_KEY, JSON.stringify(okxLocalSnapshot)); }
+    if (!options.immediate) {
+      okxSnapshotDirty = true;
+      if (okxSnapshotWriteTimer) return;
+      okxSnapshotWriteTimer = setTimeout(() => writeOkxLocalSnapshot({ immediate: true }), 15000);
+      return;
+    }
+    if (!okxSnapshotDirty) return;
+    clearTimeout(okxSnapshotWriteTimer);
+    okxSnapshotWriteTimer = 0;
+    try {
+      localStorage.setItem(OKX_LOCAL_CACHE_KEY, JSON.stringify(okxLocalSnapshot));
+      okxSnapshotDirty = false;
+    }
     catch (error) {}
   }
 
@@ -1465,7 +1506,7 @@
     if (!rows.length) return;
     const snapshot = ensureOkxLocalSnapshot();
     if (!snapshot.candles[instId]) snapshot.candles[instId] = {};
-    snapshot.candles[instId][bar] = rows;
+    snapshot.candles[instId][bar] = rows.map(compactOkxCandle);
     snapshot.candleUpdatedAt[instId + "|" + bar] = Date.now();
     snapshot.generatedAt = Date.now();
     writeOkxLocalSnapshot();
@@ -1559,7 +1600,7 @@
         + '" aria-pressed="' + String(selected)
         + '" style="--coin-accent:' + market.accent + '">'
         + '<span class="market-watch-icon"><img src="' + escapeHtml(market.icon)
-        + '" alt="" width="32" height="32"></span>'
+        + '" alt="" width="32" height="32" decoding="async"></span>'
         + '<span class="market-watch-pair"><b>' + escapeHtml(market.symbol)
         + '</b><small>' + escapeHtml(market.name) + '</small></span>'
         + '<span class="market-watch-quote"><b>' + formatMarketPrice(ticker?.last)
@@ -1586,7 +1627,7 @@
     if (icon) {
       icon.style.setProperty("--coin-accent", market.accent);
       icon.innerHTML = '<img src="' + escapeHtml(market.icon) + '" alt="' + escapeHtml(market.name)
-        + '" width="40" height="40">';
+        + '" width="40" height="40" decoding="async">';
     }
     setText("#okxActiveSymbol", market.symbol + " / USDT");
     setText("#okxActiveName", market.name + " · 欧易现货");
@@ -1661,10 +1702,14 @@
     const width = Math.max(320, Math.round(wrap.clientWidth));
     const height = Math.max(300, Math.round(wrap.clientHeight));
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.round(width * dpr);
-    canvas.height = Math.round(height * dpr);
-    canvas.style.width = width + "px";
-    canvas.style.height = height + "px";
+    const pixelWidth = Math.round(width * dpr);
+    const pixelHeight = Math.round(height * dpr);
+    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
+      canvas.style.width = width + "px";
+      canvas.style.height = height + "px";
+    }
     const context = canvas.getContext("2d");
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
     context.clearRect(0, 0, width, height);
@@ -1850,6 +1895,14 @@
     const canvas = $("#okxMarketChart");
     if (!canvas || canvas.dataset.bound === "1") return;
     canvas.dataset.bound = "1";
+    let chartDrawFrame = 0;
+    const scheduleChartDraw = () => {
+      if (chartDrawFrame) return;
+      chartDrawFrame = requestAnimationFrame(() => {
+        chartDrawFrame = 0;
+        drawOkxChart();
+      });
+    };
     $$("[data-chart-mode]").forEach(button =>
       button.setAttribute("aria-pressed", String(button.dataset.chartMode === activeOkxChartMode)));
     $$("[data-chart-bar]").forEach(button =>
@@ -1880,18 +1933,20 @@
       const plotLeft = 12;
       const plotWidth = Math.max(1, rect.width - 88);
       const x = Math.max(0, Math.min(plotWidth - 1, event.clientX - rect.left - plotLeft));
-      okxChartHoverIndex = Math.max(0, Math.min(okxCandles.length - 1, Math.floor(x / plotWidth * okxCandles.length)));
-      drawOkxChart();
-    });
+      const nextIndex = Math.max(0, Math.min(okxCandles.length - 1, Math.floor(x / plotWidth * okxCandles.length)));
+      if (nextIndex === okxChartHoverIndex) return;
+      okxChartHoverIndex = nextIndex;
+      scheduleChartDraw();
+    }, { passive: true });
     canvas.addEventListener("pointerleave", () => {
       okxChartHoverIndex = null;
-      drawOkxChart();
-    });
+      scheduleChartDraw();
+    }, { passive: true });
     if ("ResizeObserver" in window) {
-      okxChartResizeObserver = new ResizeObserver(() => drawOkxChart());
+      okxChartResizeObserver = new ResizeObserver(scheduleChartDraw);
       okxChartResizeObserver.observe($("#okxChartWrap"));
     } else {
-      window.addEventListener("resize", drawOkxChart, { passive: true });
+      window.addEventListener("resize", scheduleChartDraw, { passive: true });
     }
   }
 
@@ -2143,6 +2198,8 @@
   }
 
   async function loadRadarData() {
+    if (radarRequestInFlight) return;
+    radarRequestInFlight = true;
     const status = $("#radarStatus");
     const globalStatus = $("#globalDataStatus");
     status?.classList.remove("online", "offline");
@@ -2224,6 +2281,8 @@
         originStatus.textContent = "● 数据接口暂不可用";
         originStatus.className = "network-pill offline";
       }
+    } finally {
+      radarRequestInFlight = false;
     }
   }
 
@@ -2292,15 +2351,15 @@
   }
 
   function initFilters() {
-    $("#courseSearch")?.addEventListener("input", renderCourses);
-    $("#faqSearch")?.addEventListener("input", renderFaqs);
+    $("#courseSearch")?.addEventListener("input", debounce(renderCourses));
+    $("#faqSearch")?.addEventListener("input", debounce(renderFaqs));
     $$("[data-course-series]").forEach(link => {
       link.addEventListener("click", event => {
         event.preventDefault();
         selectCourseSeries(link.dataset.courseSeries);
       });
     });
-    $("#videoSearch")?.addEventListener("input", renderVideos);
+    $("#videoSearch")?.addEventListener("input", debounce(renderVideos));
     $("#openVideoFavorites")?.addEventListener("click", () => selectVideoSeries("fav"));
   }
 
@@ -2311,6 +2370,9 @@
     let width = 0;
     let height = 0;
     let particles = [];
+    let animationFrame = 0;
+    let resizeFrame = 0;
+    let lastDrawAt = 0;
     const resize = () => {
       const ratio = Math.min(window.devicePixelRatio || 1, 1.5);
       width = window.innerWidth;
@@ -2329,7 +2391,16 @@
         alpha: .08 + Math.random() * .38
       }));
     };
-    const draw = () => {
+    const draw = timestamp => {
+      if (document.hidden) {
+        animationFrame = 0;
+        return;
+      }
+      if (timestamp - lastDrawAt < 32) {
+        animationFrame = requestAnimationFrame(draw);
+        return;
+      }
+      lastDrawAt = timestamp;
       context.clearRect(0, 0, width, height);
       particles.forEach(particle => {
         particle.x += particle.vx;
@@ -2346,11 +2417,29 @@
         context.arc(particle.x, particle.y, particle.r * 5, 0, Math.PI * 2);
         context.fill();
       });
-      requestAnimationFrame(draw);
+      animationFrame = requestAnimationFrame(draw);
+    };
+    const scheduleResize = () => {
+      if (resizeFrame) return;
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = 0;
+        resize();
+      });
+    };
+    const resume = () => {
+      if (!document.hidden && !animationFrame) animationFrame = requestAnimationFrame(draw);
     };
     resize();
-    window.addEventListener("resize", resize, { passive: true });
-    draw();
+    window.addEventListener("resize", scheduleResize, { passive: true });
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden && animationFrame) {
+        cancelAnimationFrame(animationFrame);
+        animationFrame = 0;
+      } else {
+        resume();
+      }
+    });
+    resume();
   }
 
   function initMotion() {
@@ -2419,6 +2508,7 @@
     initTools();
     ensureOriginRadarStructure();
     initOkxMarketUi();
+    const hasOkxMarket = Boolean($("#okxMarketGrid") && $("#okxMarketChart"));
     const courseCount = COURSES.length || 36;
     const videoCount = VIDEOS.length || 36;
     if ($("#heroVideoCount")) $("#heroVideoCount").textContent = videoCount;
@@ -2482,10 +2572,18 @@
       }
     });
     loadRadarData();
-    initializeOkxMarketData();
-    setInterval(loadRadarData, REFRESH_INTERVAL_MS);
-    setInterval(loadOkxMarketData, OKX_REFRESH_INTERVAL_MS);
-    setInterval(loadOkxCandles, OKX_CANDLE_REFRESH_INTERVAL_MS);
+    if (hasOkxMarket) initializeOkxMarketData();
+    setInterval(() => {
+      if (!document.hidden) loadRadarData();
+    }, REFRESH_INTERVAL_MS);
+    if (hasOkxMarket) {
+      setInterval(() => {
+        if (!document.hidden) loadOkxMarketData();
+      }, OKX_REFRESH_INTERVAL_MS);
+      setInterval(() => {
+        if (!document.hidden) loadOkxCandles();
+      }, OKX_CANDLE_REFRESH_INTERVAL_MS);
+    }
     $("#refreshData")?.addEventListener("click", () => {
       loadRadarData();
       loadOkxMarketData({ force: true });
@@ -2524,9 +2622,21 @@
     $("#videoPlayer")?.addEventListener("ended", () => {
       if (activeVideo) updateStore("videoProgress", activeVideo.slug, 100);
     });
-    window.addEventListener("pagehide", saveVideoProgress);
+    window.addEventListener("pagehide", () => {
+      saveVideoProgress();
+      writeOkxLocalSnapshot({ immediate: true });
+    });
     document.addEventListener("visibilitychange", () => {
-      if (document.hidden) saveVideoProgress();
+      if (document.hidden) {
+        saveVideoProgress();
+        writeOkxLocalSnapshot({ immediate: true });
+      } else {
+        loadRadarData();
+        if (hasOkxMarket) {
+          loadOkxMarketData();
+          loadOkxCandles();
+        }
+      }
     });
   }
 

@@ -1279,6 +1279,7 @@ body {
 .origin-bg img {
   position: absolute; top: 0; left: 50%; width: 1920px; max-width: none;
   min-height: 100vh; transform: translateX(-50%) scale(1.08); opacity: .68;
+  transform-origin: 50% 3816px;
   animation: originBgDrift 60s ease-in-out infinite alternate;
 }
 .origin-bg::after {

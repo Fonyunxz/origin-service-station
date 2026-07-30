@@ -53,6 +53,29 @@ function normalizeCandle(row) {
   return candle;
 }
 
+function compactCandle(candle) {
+  return [
+    candle.ts,
+    candle.open,
+    candle.high,
+    candle.low,
+    candle.close,
+    candle.volume,
+    candle.quoteVolume,
+    candle.confirmed ? 1 : 0
+  ];
+}
+
+function compactCandles(candles) {
+  return Object.fromEntries(Object.entries(candles).map(([instId, bars]) => [
+    instId,
+    Object.fromEntries(Object.entries(bars).map(([bar, rows]) => [
+      bar,
+      rows.map(compactCandle)
+    ]))
+  ]));
+}
+
 async function loadTickers() {
   const payload = await requestJson("/api/v5/market/tickers?instType=SPOT");
   const wanted = new Set(MARKETS);
@@ -114,7 +137,11 @@ async function main() {
     candles: candleResult.candles,
     candleUpdatedAt: candleResult.candleUpdatedAt
   };
-  const json = JSON.stringify(snapshot);
+  const compactSnapshot = {
+    ...snapshot,
+    candles: compactCandles(snapshot.candles)
+  };
+  const json = JSON.stringify(compactSnapshot);
   const prettyJson = JSON.stringify(snapshot, null, 2) + "\n";
   const script = `window.OKX_MARKET_SNAPSHOT = Object.freeze(${json});\n`;
   await mkdir(dirname(OUTPUT_JSON), { recursive: true });
