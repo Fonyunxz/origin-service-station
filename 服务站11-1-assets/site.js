@@ -2068,14 +2068,14 @@
       + '<path id="originTreasuryArea" fill="rgba(214,168,75,.1)"></path><path id="originTreasuryLine" fill="none" stroke="#d6a84b" stroke-width="3"></path></svg>'
       + '<dl><div><dt>无风险价值</dt><dd id="originRiskFree">—</dd></div><div><dt>累计销毁</dt><dd id="originBurn">—</dd></div></dl></article></div>'
       + '<div class="origin-detail-grid">'
-      + '<article class="origin-detail-card events-panel"><header><h3 class="radar-heading"><span class="theme-icon i-zap" aria-hidden="true"></span>实时链上事件</h3><span>最近成交 · 可查交易</span></header><div class="origin-event-list" id="originEventList"></div></article>'
       + '<article class="origin-detail-card health-panel"><header><h3 class="radar-heading"><span class="theme-icon i-heart-pulse" aria-hidden="true"></span>生态健康指数</h3><span>5 项机械评分</span></header>'
       + '<div class="origin-health-layout"><div class="origin-health-ring" id="originHealthRing"><strong id="originHealthScore">—</strong><small>/ 100</small></div>'
       + '<div class="origin-health-parts" id="originHealthParts"></div></div>'
       + '<p class="origin-method-note">评分只根据流动性、链上活跃、质押、供应稳定与安全透明五项公开指标计算，不构成投资建议。</p></article>'
-      + '<article class="origin-detail-card whale-panel"><header><h3 class="radar-heading"><span class="theme-icon i-activity" aria-hidden="true"></span>鲸鱼动态</h3><span>大额成交追踪</span></header><div class="origin-whale-list" id="originWhaleList"></div></article>'
       + '<article class="origin-detail-card risk-panel"><header><h3 class="radar-heading"><span class="theme-icon i-alert" aria-hidden="true"></span>链上风险雷达</h3><span class="risk-level" id="originRiskLevel">检测中</span></header>'
-      + '<div class="origin-risk-items" id="originRiskItems"></div></article></div>';
+      + '<div class="origin-risk-items" id="originRiskItems"></div></article>'
+      + '<article class="origin-detail-card events-panel"><header><h3 class="radar-heading"><span class="theme-icon i-zap" aria-hidden="true"></span>实时链上事件</h3><span>最近成交 · 可查交易</span></header><div class="origin-event-list" id="originEventList"></div></article>'
+      + '<article class="origin-detail-card whale-panel"><header><h3 class="radar-heading"><span class="theme-icon i-activity" aria-hidden="true"></span>鲸鱼动态</h3><span>大额成交追踪</span></header><div class="origin-whale-list" id="originWhaleList"></div></article></div>';
   }
 
   function originTimeAgo(timestamp) {
